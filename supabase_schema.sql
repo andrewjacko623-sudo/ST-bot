@@ -301,10 +301,12 @@ GRANT EXECUTE ON FUNCTION get_available_tasks() TO anon, authenticated;
 -- ============================================
 CREATE TABLE IF NOT EXISTS "player-state" (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-    is_in_chastity BOOLEAN DEFAULT false,
+    in_chastity BOOLEAN DEFAULT false,
+    chastity_start_time TIMESTAMP WITH TIME ZONE,
     chastity_device VARCHAR(255),
     location VARCHAR(255),
     last_orgasm TIMESTAMP WITH TIME ZONE,
+    last_shave TIMESTAMP WITH TIME ZONE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE DEFAULT TIMEZONE('utc', NOW()) NOT NULL
 );
