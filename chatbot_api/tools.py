@@ -11,13 +11,18 @@ from typing import Optional, Dict, List, Any
 load_dotenv()
 
 # Initialize Supabase client
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+SUPABASE_URL = os.getenv("SUPABASE_URL", "").strip()
+SUPABASE_KEY = os.getenv("SUPABASE_KEY", "").strip()
 
 supabase: Optional[Client] = None
 if SUPABASE_URL and SUPABASE_KEY:
-    supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
-    print(f"✅ Supabase client initialized in tools.py")
+    try:
+        supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+        print(f"✅ Supabase client initialized in tools.py")
+    except Exception as e:
+        print(f"❌ Failed to initialize Supabase client: {e}")
+        print(f"   URL present: {bool(SUPABASE_URL)}, Key present: {bool(SUPABASE_KEY)}")
+        print(f"   URL length: {len(SUPABASE_URL) if SUPABASE_URL else 0}, Key length: {len(SUPABASE_KEY) if SUPABASE_KEY else 0}")
 else:
     print(f"⚠️ Supabase not configured in tools.py - URL: {bool(SUPABASE_URL)}, KEY: {bool(SUPABASE_KEY)}")
 

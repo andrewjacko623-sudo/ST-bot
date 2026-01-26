@@ -22,6 +22,10 @@ const ChatPage = () => {
 
   // Helper function to parse markdown images and extract URLs
   const parseMarkdownImages = (text) => {
+    if (!text || typeof text !== 'string') {
+      return { cleanedText: '', mediaUrls: [] };
+    }
+    
     const imageRegex = /!\[([^\]]*)\]\(([^)]+)\)/g;
     const mediaUrls = [];
     let cleanedText = text;
@@ -118,6 +122,13 @@ const ChatPage = () => {
         max_tokens: 1000,
       });
 
+      console.log('Response from backend:', response.data); // Debug log
+
+      // Check if response has the expected structure
+      if (!response.data || !response.data.response) {
+        throw new Error('Invalid response format from backend');
+      }
+
       // Parse markdown images from response
       const { cleanedText, mediaUrls: parsedUrls } = parseMarkdownImages(response.data.response);
       
@@ -128,17 +139,18 @@ const ChatPage = () => {
         ...prev,
         { 
           role: 'assistant', 
-          content: cleanedText,
+          content: cleanedText || 'No response received',
           media_urls: allMediaUrls
         },
       ]);
     } catch (error) {
       console.error('Error sending message:', error);
+      console.error('Error details:', error.response?.data || error.message);
       setMessages((prev) => [
         ...prev,
         {
           role: 'assistant',
-          content: 'Sorry, I encountered an error. Please try again.',
+          content: `Sorry, I encountered an error: ${error.response?.data?.detail || error.message || 'Unknown error'}. Please try again.`,
         },
       ]);
     } finally {

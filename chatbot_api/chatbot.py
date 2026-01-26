@@ -11,14 +11,22 @@ from typing import Optional
 
 # Load environment variables
 load_dotenv()
-GROK_API_KEY = os.getenv("GROK_API_KEY")
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+GROK_API_KEY = os.getenv("GROK_API_KEY", "").strip()
+SUPABASE_URL = os.getenv("SUPABASE_URL", "").strip()
+SUPABASE_KEY = os.getenv("SUPABASE_KEY", "").strip()
 
 # Initialize Supabase client for chat history
 supabase: Optional[Client] = None
 if SUPABASE_URL and SUPABASE_KEY:
-    supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+    try:
+        supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+        print(f"✅ Supabase client initialized in chatbot.py")
+    except Exception as e:
+        print(f"❌ Failed to initialize Supabase client in chatbot.py: {e}")
+        print(f"   URL: {SUPABASE_URL[:50]}..." if len(SUPABASE_URL) > 50 else f"   URL: {SUPABASE_URL}")
+        print(f"   Key present: {bool(SUPABASE_KEY)}, Key length: {len(SUPABASE_KEY) if SUPABASE_KEY else 0}")
+else:
+    print(f"⚠️ Supabase not configured in chatbot.py - URL: {bool(SUPABASE_URL)}, KEY: {bool(SUPABASE_KEY)}")
 
 # System prompt with exact personality
 TASK_MODULE = """
