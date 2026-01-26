@@ -1,12 +1,12 @@
 .girls-page {
   width: 100%;
-  height: calc(100vh - 120px);
-  overflow: hidden;
+  min-height: calc(100vh - 120px);
+  padding-bottom: 20px;
 }
 
 .girls-layout {
   display: flex;
-  height: 100%;
+  min-height: calc(100vh - 120px);
   gap: 20px;
 }
 
@@ -18,6 +18,7 @@
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   display: flex;
   flex-direction: column;
+  max-height: calc(100vh - 140px);
   overflow: hidden;
 }
 
@@ -57,6 +58,8 @@
   display: flex;
   flex-direction: column;
   gap: 12px;
+  overflow-y: auto;
+  max-height: none;
 }
 
 .girl-form input,
@@ -282,6 +285,7 @@
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   display: flex;
   flex-direction: column;
+  max-height: calc(100vh - 140px);
   overflow: hidden;
 }
 
@@ -327,6 +331,8 @@
   display: flex;
   flex-direction: column;
   gap: 15px;
+  overflow-y: auto;
+  max-height: 60vh;
 }
 
 .material-form input,
@@ -526,18 +532,75 @@
 
 /* Responsive Design */
 @media (max-width: 768px) {
+  .girls-page {
+    padding-bottom: 100px; /* Extra padding for mobile to prevent cutoff */
+  }
+
   .girls-layout {
     flex-direction: column;
-    height: auto;
+    min-height: auto;
+    gap: 15px;
   }
 
   .girls-sidebar {
     width: 100%;
-    max-height: 300px;
+    max-height: 400px;
+    order: 2; /* Show materials first on mobile */
+  }
+
+  .material-section {
+    width: 100%;
+    max-height: none;
+    order: 1; /* Show materials first on mobile */
+    margin-bottom: 20px;
+  }
+
+  .material-form {
+    max-height: none;
+    padding-bottom: 30px; /* Extra padding for save button */
+  }
+
+  .form-buttons {
+    position: sticky;
+    bottom: 0;
+    background-color: white;
+    padding-top: 15px;
+    margin-top: 10px;
+    border-top: 1px solid #e0e0e0;
+    z-index: 10;
+  }
+
+  .girl-form {
+    padding-bottom: 30px; /* Extra padding for save button */
+  }
+
+  .girl-form .form-buttons {
+    position: sticky;
+    bottom: 0;
+    background-color: white;
+    padding-top: 15px;
+    margin-top: 10px;
+    border-top: 1px solid #e0e0e0;
+    z-index: 10;
   }
 
   .materials-grid {
     grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
     gap: 15px;
+    padding-bottom: 20px;
+  }
+
+  .edit-girl-form {
+    padding-bottom: 20px;
+  }
+
+  .edit-girl-form .edit-buttons {
+    position: sticky;
+    bottom: 0;
+    background-color: #f8f9fa;
+    padding-top: 10px;
+    margin-top: 10px;
+    border-top: 1px solid #e0e0e0;
+    z-index: 10;
   }
 }
