@@ -6,6 +6,7 @@ const PlayerStatePage = () => {
   const [playerState, setPlayerState] = useState({
     in_chastity: false,
     chastity_start_time: '',
+    lockbox_endtime: '',
     chastity_device: '',
     location: '',
     last_orgasm: '',
@@ -37,6 +38,7 @@ const PlayerStatePage = () => {
           setPlayerState({
             in_chastity: false,
             chastity_start_time: '',
+            lockbox_endtime: '',
             chastity_device: '',
             location: '',
             last_orgasm: '',
@@ -53,6 +55,7 @@ const PlayerStatePage = () => {
         setPlayerState({
           in_chastity: data.in_chastity ?? false,
           chastity_start_time: toDatetimeLocal(data.chastity_start_time),
+          lockbox_endtime: toDatetimeLocal(data.lockbox_endtime),
           chastity_device: data.chastity_device || '',
           location: data.location || '',
           last_orgasm: toDatetimeLocal(data.last_orgasm),
@@ -84,6 +87,7 @@ const PlayerStatePage = () => {
       const updateData = {
         in_chastity: playerState.in_chastity,
         chastity_start_time: toIso(playerState.chastity_start_time),
+        lockbox_endtime: toIso(playerState.lockbox_endtime),
         chastity_device: playerState.chastity_device.trim() || null,
         location: playerState.location.trim() || null,
         last_orgasm: toIso(playerState.last_orgasm),
@@ -166,6 +170,18 @@ const PlayerStatePage = () => {
             onChange={handleInputChange}
           />
           <small className="form-hint">When you entered chastity</small>
+        </div>
+
+        <div className="form-group">
+          <label htmlFor="lockbox_endtime">Lockbox End Time</label>
+          <input
+            type="datetime-local"
+            id="lockbox_endtime"
+            name="lockbox_endtime"
+            value={playerState.lockbox_endtime}
+            onChange={handleInputChange}
+          />
+          <small className="form-hint">When the lockbox period ends</small>
         </div>
 
         <div className="form-group">

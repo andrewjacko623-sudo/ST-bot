@@ -222,6 +222,52 @@ def format_time_difference(timestamp_str: Optional[str]) -> str:
         return "N/A"
 
 
+def format_time_until(timestamp_str: Optional[str]) -> str:
+    """
+    Calculate time from now until a future timestamp (end - now).
+    Returns formatted string like "3 days 4 hrs remaining" or "ended" if in the past.
+    """
+    if not timestamp_str:
+        return "N/A"
+
+    try:
+        if isinstance(timestamp_str, str):
+            if timestamp_str.endswith('Z'):
+                dt = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
+            else:
+                dt = datetime.fromisoformat(timestamp_str)
+        else:
+            return "N/A"
+
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+
+        now = datetime.now(timezone.utc)
+        diff = dt - now
+
+        total_seconds = int(diff.total_seconds())
+        if total_seconds <= 0:
+            return "ended"
+
+        days = total_seconds // 86400
+        hours = (total_seconds % 86400) // 3600
+
+        if days > 0:
+            if hours > 0:
+                return f"{days} day{'s' if days != 1 else ''} {hours} hr{'s' if hours != 1 else ''} remaining"
+            return f"{days} day{'s' if days != 1 else ''} remaining"
+        elif hours > 0:
+            return f"{hours} hr{'s' if hours != 1 else ''} remaining"
+        else:
+            minutes = total_seconds // 60
+            if minutes > 0:
+                return f"{minutes} min{'s' if minutes != 1 else ''} remaining"
+            return "less than 1 min remaining"
+    except Exception as e:
+        print(f"Error formatting time until: {e}")
+        return "N/A"
+
+
 def get_player_state() -> str:
     """
     Get player state from the database and format it.
@@ -244,6 +290,7 @@ def get_player_state() -> str:
         chastity_device = state.get("chastity_device", "") or "N/A"
         location = state.get("location", "") or "N/A"
         chastity_start_time = state.get("chastity_start_time")
+        lockbox_endtime = state.get("chastity_lockbox_endtime")
         last_orgasm = state.get("last_orgasm")
         last_shave = state.get("last_shave")
         
@@ -264,11 +311,15 @@ def get_player_state() -> str:
         last_shave_str = format_time_difference(last_shave)
         if last_shave_str != "N/A":
             last_shave_str += " ago"
-        
+
+        # Lockbox: end time is in Supabase, duration = end - now (time remaining)
+        chastity_lockbox_duration = format_time_until(lockbox_endtime)
+
         # Format the output
         result = f"""<PLAYER-STATE>
 in-chastity: {in_chastity_str},
 chastity-time: {chastity_time_str},
+chastity-lockbox-duration: {chastity_lockbox_duration},
 chastity-device: {chastity_device},
 current-location: {location}
 last-orgasm: {last_orgasm_str},

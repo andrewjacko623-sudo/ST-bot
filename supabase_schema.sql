@@ -303,6 +303,7 @@ CREATE TABLE IF NOT EXISTS "player-state" (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     in_chastity BOOLEAN DEFAULT false,
     chastity_start_time TIMESTAMP WITH TIME ZONE,
+    lockbox_endtime TIMESTAMP WITH TIME ZONE,
     chastity_device VARCHAR(255),
     location VARCHAR(255),
     last_orgasm TIMESTAMP WITH TIME ZONE,
