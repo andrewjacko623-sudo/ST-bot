@@ -342,11 +342,13 @@ async def chat(request: ChatRequest):
                             "content": tool_content
                         })
                         
-                        # Extract media URLs from tool results
+                        # Extract media URLs from tool results (only one per get_girl result)
                         if isinstance(result, dict) and "materials" in result:
-                            for material in result.get("materials", []):
+                            materials = result.get("materials", [])
+                            for material in materials:
                                 if material.get("media_url"):
                                     media_urls.append(material["media_url"])
+                                    break  # only send one picture per girl result
                     except Exception as e:
                         print(f"Error executing tool {tool_name}: {e}")
                         # Add error message as tool result

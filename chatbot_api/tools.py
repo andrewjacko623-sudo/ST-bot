@@ -2,6 +2,7 @@
 Tool functions for Grok to call
 """
 import os
+import random
 from datetime import datetime, timezone
 from dotenv import load_dotenv
 from supabase import create_client, Client
@@ -119,7 +120,7 @@ def get_girl() -> Dict[str, Any]:
         # Pick first girl (LLM will decide which one organically based on context)
         girl = girls_response.data[0]
         
-        # Get materials for this girl
+        # Get materials for this girl, then pick ONE random material to show (one pic/video per response)
         materials_response = supabase.table("girl_material").select("*").eq("girl_id", girl["id"]).execute()
         
         materials = []
@@ -131,6 +132,8 @@ def get_girl() -> Dict[str, Any]:
                     "media_url": material.get("media_url", ""),
                     "media_type": material.get("media_type", "image")
                 })
+            # Return only one random material so the bot sends one picture, not all
+            materials = [random.choice(materials)] if materials else []
         
         return {
             "name": girl.get("name", ""),
