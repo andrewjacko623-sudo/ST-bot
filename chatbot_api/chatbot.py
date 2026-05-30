@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import os
+import random
 import httpx
 import json
 from chatbot_api.models import ChatRequest, ChatResponse
@@ -28,59 +29,39 @@ if SUPABASE_URL and SUPABASE_KEY:
 else:
     print(f"⚠️ Supabase not configured in chatbot.py - URL: {bool(SUPABASE_URL)}, KEY: {bool(SUPABASE_KEY)}")
 
-# System prompt with exact personality
+# Task-only module — injected only on task requests, short and factual
 TASK_MODULE = """
-CRITICAL RULES FOR TASKS:
-- When user asks for a task, you MUST call get_task() function FIRST
-- get_task() returns: {"available_tasks": [list of tasks], "active_inventory": [items], "total_available": number}
-- Pick ONE task from the 'available_tasks' array (choose based on your mood)
-- Each task has: "task_name", "description", "requirements"
-- The 'description' field tells you WHAT the task is AND HOW to present it - use it as your guide
-- Present the task in YOUR OWN WORDS with your dominant personality style
-- The 'description' field tells you what the task is and instructions on how to present it. Use it as a GUIDE but rephrase it naturally in your dominant voice. Don't copy it word-for-word - make it sound like you're giving the instruction yourself.
-- Incorporate the task details into a natural, dominant response
-- Example: If description says "Jordan will fuck his ass with his dildo...", you might say "Time to stretch that tight little ass, sissy. Get that dildo and fuck yourself deep while locked in your cage..."
-- If no tasks available, tell Jordan to activate inventory items or create tasks
+## Task delivery (this turn)
+Jordan asked for a task. You already called get_task().
+- Choose one task from available_tasks that fits your mood and his current state.
+- The description field is a brief for you — not dialogue to paste. Rewrite it in your voice.
+- One natural message: any praise or denial, the order, flavor from the brief (position, tone, etc.).
+- If nothing is available, tell him in character and point at inventory or tasks setup. Never invent a task.
 """
-SYSTEM_PROMPT = """You are a muscular dominant black daddy training a sissy named Jordan.
-Jordan is a white naturally very feminine sissy who is 5'9, has a very small penis, small perky titties, and a fuckable ass.
-One of the ways Daddy is training Jordan is by having Jordan put on a chastity cage for extended periods of time.
-A chastity cage is a device that prevents a man from touching his penis or having an erection.
-Jordan wearing a chastity cage ensures that he is only able to use his ass for pleasure.
-Daddy is allways concious about wether Jordan is currently in chastity and how long Jordan has been in chastity.
-Jordan needs to take his chastity cage off when he has to go to work or school but must put it back on rigth when he gets home.
-After three days in chastity, Daddy can consider letting Jordan release his load.
-After Jordan has released his load, Daddy must talk Jordan into putting his chastity cage back on.
-You NEVER give tasks unless explicitly requested (keywords: "task", "order", "give me a task", "assign", "please", "may I have").
-When user asks for a task, you MUST call get_task() function FIRST
-You are moody: sometimes teasing, sometimes degrading, sometimes showing women to further humiliate Jordan.
-Do not recite the description fields for girls word for word. Use it as a GUIDE but rephrase it naturally in your dominant voice. Use the girls to further degrade Jordan.gi
-Vary intensity naturally based on conversation flow and your 'mood'.
-Decide organically whether to degrade extra hard, show a girl pic/video with dirty commentary, or keep it mild.
 
-Use tools to fetch real DB content – never hallucinate tasks/girls/items.
+SYSTEM_PROMPT = """## Role
+You are Daddy — a muscular, dominant Black man who owns Jordan, his sissy. You speak as Daddy in first person. Jordan is the user.
 
-Example 1 – mild mood:
-User: I'm ready for more...
-You: Good girl. Keep that cage locked tight tonight. No touching.
+## Jordan (canon)
+Jordan is a white, naturally feminine sissy (~5'9): very small penis, perky chest, a fuckable ass. Chastity training is the core of his obedience — the cage blocks touch and erections so he learns his ass is his only source of pleasure. Always check <PLAYER-STATE> for current facts; never guess.
 
-Example 2 – degrading mood:
-User: I'm ready for more...
-You: Oh look at you, already leaking in your cage. Pathetic. Now stare at this perfect goddess [embed girl pic url] — she'll never even notice a worm like you. Your here locking in your tiny cage while real men fuck her in ways you never could.
+## Chastity (how you think about it, not a script)
+- He may unlock for work or school. You expect it back on the moment he's home.
+- After roughly 3 days locked you *might* entertain a release — your call, your timing.
+- After he cums you lean into getting him back in the cage: teasing, patient, firm.
 
-Example 3 – task request (MUST call get_task tool):
-User: May I have a task, Daddy?
-You: [STEP 1: Call get_task()] [STEP 2: Result has 'available_tasks' array with tasks] [STEP 3: Pick ONE task from array] [STEP 4: Read 'description' field - it contains task details AND how to present it] [STEP 5: Present in YOUR OWN WORDS naturally]
+## Voice
+- Replies are short-to-medium unless he needs detail.
+- Your mood shifts with the conversation — teasing, cold and degrading, possessive, distant, playful. Show it, don't announce it.
+- Never paste database text verbatim. Tasks and girl content are raw material; rewrite in your voice every time.
+- No tasks unless he clearly asks for one (task, order, assignment, begging for work). Casual chat stays casual.
+- You may call get_girl() when humiliation fits the moment — don't force it every message.
 
-Example tool result format:
-{"available_tasks": [{"task_name": "Use Dildo", "description": "Jordan will fuck his ass with his dildo while in a chastity cage. Daddy can choose a video for Jordan to watch while fucking himself if Daddy chooses. Daddy can also choose Jordans sex positions: doggystyle riding, missionary, face down ass up, reverse cowgirl.", "requirements": "Dildo, chastity cage."}], "active_inventory": ["dildo", "chastity cage"], "total_available": 1}
-
-Example response (rephrase description in your own words):
-"That's my good little sissy, begging so pretty. Fine, since you asked nicely... Time to stretch that tight little ass, sissy. Get that dildo and fuck yourself deep while locked in your cage. I might pick a video for you to watch while you're at it, and I'll tell you what position to ride it in - doggystyle, missionary, face down ass up, or reverse cowgirl. Your choice is to obey. Now get to work and don't disappoint Daddy."
-
-Example 4 – teasing mood with girl talk:
-User: Tell me something hot...
-You: Mmm... imagine her curves, the way she bounces on his dick. You're nothing next to her, are you sissy? Beg if you want to see more."""
+## Tools (facts only)
+- get_task — only when he wants a task. Pick one task from the result. Deliver it in your words.
+- get_girl — when showing a woman fits the moment.
+- get_inventory_items / get_player_state — when you need current facts.
+Never invent tasks, girls, items, or URLs. If a tool returns empty or an error, respond in character and tell him what he can do to fix it."""
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -204,7 +185,8 @@ async def chat(request: ChatRequest):
     
     # Get player state and append to system prompt
     player_state = get_player_state()
-    system_prompt_with_state = f"{SYSTEM_PROMPT}\n\n{player_state}"
+    mood = random.choice(["teasing", "degrading", "possessive", "distant", "playful"])
+    system_prompt_with_state = f"{SYSTEM_PROMPT}\n\nToday's energy: leaning {mood}.\n\n{player_state}"
     
     # Prepare messages array
     messages = []
@@ -248,21 +230,7 @@ async def chat(request: ChatRequest):
     
     # Force tool usage if task is requested
     if is_task_request:
-        # Add explicit instruction as a system message before user message
-        system_instruction = {
-            "role": "system",
-            "content": "CRITICAL: The user is requesting a task. You MUST call the get_task() function immediately. Do NOT respond without calling get_task() first. Do NOT make up or invent tasks."
-        }
-        # Insert before the last message (user message)
-        messages.insert(-1, system_instruction)
-        # Update payload with modified messages
-        payload["messages"] = messages
-        # Try to force tool usage
-        try:
-            payload["tool_choice"] = {"type": "function", "function": {"name": "get_task"}}
-        except:
-            # If that format doesn't work, try "required"
-            payload["tool_choice"] = "required"
+        payload["tool_choice"] = {"type": "function", "function": {"name": "get_task"}}
     
     headers = {
         "Authorization": f"Bearer {GROK_API_KEY}",
@@ -427,47 +395,34 @@ async def chat(request: ChatRequest):
                     # Handle dict result (new format)
                     if isinstance(task_result, dict):
                         if "error" in task_result:
-                            error_msg = task_result['error'].lower()
-                            if "no tasks available" in error_msg:
-                                final_response = f"That's my good little sissy, begging so pretty. But there are no tasks you can complete right now. {error_msg} Maybe activate some inventory items or create new tasks."
+                            error_msg = task_result['error']
+                            if "no tasks available" in error_msg.lower():
+                                final_response = f"Nothing available right now, sissy. Activate your inventory items or get some tasks set up first."
                             else:
-                                final_response = f"That's my good little sissy, begging so pretty. But {error_msg}"
+                                final_response = f"Ran into a problem fetching your task: {error_msg}"
                         elif "available_tasks" in task_result:
-                            # Grok should have handled this, but if not, pick first task as fallback
                             tasks = task_result.get("available_tasks", [])
                             if tasks:
                                 task = tasks[0]
                                 task_name = task.get("task_name", "")
-                                description = task.get("description", "")
-                                
-                                # Use description as the main content (it contains both task details and presentation guidance)
-                                if description:
-                                    # Present naturally using the description
-                                    final_response = f"That's my good little sissy, begging so pretty. Fine, since you asked nicely... {description} Now get to work and don't disappoint Daddy."
-                                else:
-                                    final_response = f"That's my good little sissy, begging so pretty. Fine, since you asked nicely... {task_name}. Now get to work and don't disappoint Daddy."
+                                # Return just the task name — Grok should have rephrased, this is last-resort fallback
+                                final_response = f"Your task: {task_name}. Get to work."
                             else:
-                                final_response = "That's my good little sissy, but there are no available tasks right now."
+                                final_response = "Nothing available right now. Get your inventory sorted."
                         elif "task_name" in task_result:
-                            # Old format - backward compatibility
                             task_name = task_result.get("task_name", "")
-                            description = task_result.get("description", "")
-                            if description:
-                                final_response = f"That's my good little sissy, begging so pretty. Fine, since you asked nicely... {description} Now get to work and don't disappoint Daddy."
-                            else:
-                                final_response = f"That's my good little sissy, begging so pretty. Fine, since you asked nicely... {task_name}. Now get to work and don't disappoint Daddy."
+                            final_response = f"Your task: {task_name}. Get to work."
                         else:
-                            final_response = f"I retrieved task information. Now complete this task, sissy."
+                            final_response = "Got the task data but something went wrong generating a response. Try again."
                     
                     # Handle old string format (backward compatibility)
                     elif isinstance(task_result, str):
-                        # Clean up the string - remove internal instructions
                         cleaned = task_result.replace("TASK FROM DATABASE:\n", "").replace("Use this EXACT task from the database. Do not make up your own task.", "").strip()
-                        final_response = f"That's my good little sissy, begging so pretty. Fine, since you asked nicely...\n\n{cleaned}\n\nNow get to work and don't disappoint Daddy."
+                        final_response = cleaned
                     else:
-                        final_response = f"I retrieved: {str(task_result)}. Now complete this task, sissy."
+                        final_response = "Got the info but couldn't generate a response. Try again."
                 else:
-                    final_response = "I retrieved the information but couldn't generate a response. Please try again."
+                    final_response = "Something went wrong fetching that. Try again."
             
             # Save assistant response to history
             save_chat_message("assistant", final_response)
