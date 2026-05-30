@@ -170,6 +170,40 @@ def get_inventory_items() -> List[str]:
         return [f"Error fetching inventory: {str(e)}"]
 
 
+def create_task(name: str, description: str) -> Dict[str, Any]:
+    """
+    Save a new task that Daddy just assigned to Jordan into the database.
+    Call this after deciding on and delivering a task in chat so it appears on Jordan's task page.
+    """
+    if not supabase:
+        return {"error": "Database not configured. Cannot save task."}
+
+    try:
+        result = supabase.table("tasks").insert({
+            "name": name.strip(),
+            "description": description.strip(),
+            "status": "pending",
+            "required_inventory_ids": None,
+            "requirements": None,
+        }).select("id, name, status, assigned_at").single().execute()
+
+        if not result.data:
+            return {"error": "Failed to save task — no data returned."}
+
+        return {
+            "saved": True,
+            "task_name": result.data.get("name"),
+            "task_id": result.data.get("id"),
+            "status": result.data.get("status", "pending"),
+        }
+
+    except Exception as e:
+        print(f"Error in create_task: {e}")
+        import traceback
+        traceback.print_exc()
+        return {"error": f"Error saving task: {str(e)}"}
+
+
 def format_time_difference(timestamp_str: Optional[str]) -> str:
     """
     Calculate time difference between a timestamp and now.
@@ -390,6 +424,27 @@ TOOLS = [
                 "type": "object",
                 "properties": {},
                 "required": []
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "create_task",
+            "description": "Save a task you just assigned to Jordan into the database so it appears on his task page. Call this after delivering the task in chat. Use Jordan's active inventory, current chastity state, location, and time of day to craft a contextually appropriate task.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "name": {
+                        "type": "string",
+                        "description": "Short task name (e.g. 'Edge with dildo', 'Wear plug all evening')"
+                    },
+                    "description": {
+                        "type": "string",
+                        "description": "Full task description as Daddy would write it — what Jordan must do, any specific conditions, duration, positions, etc."
+                    }
+                },
+                "required": ["name", "description"]
             }
         }
     }

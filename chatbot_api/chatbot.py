@@ -5,8 +5,10 @@ import os
 import random
 import httpx
 import json
+from datetime import datetime
+from zoneinfo import ZoneInfo
 from chatbot_api.models import ChatRequest, ChatResponse
-from chatbot_api.tools import TOOLS, get_task, get_girl, get_inventory_items, get_player_state
+from chatbot_api.tools import TOOLS, get_task, get_girl, get_inventory_items, get_player_state, create_task
 from supabase import create_client, Client
 from typing import Optional
 
@@ -32,11 +34,11 @@ else:
 # Task-only module — injected only on task requests, short and factual
 TASK_MODULE = """
 ## Task delivery (this turn)
-Jordan asked for a task. You already called get_task().
-- Choose one task from available_tasks that fits your mood and his current state.
-- The description field is a brief for you — not dialogue to paste. Rewrite it in your voice.
-- One natural message: any praise or denial, the order, flavor from the brief (position, tone, etc.).
-- If nothing is available, tell him in character and point at inventory or tasks setup. Never invent a task.
+Jordan asked for a task. Call get_task() first to check for pending assigned tasks.
+- If pending tasks exist: pick one that fits his current state and inventory. Deliver it in your voice. Do NOT call create_task (already saved).
+- If no pending tasks: generate a new one based on his active inventory, chastity state, location, and current time of day. Then call create_task(name, description) to save it so it appears on his task page.
+- Never invent tasks that require inventory he doesn't have active.
+- One message: deliver the task in character, then silently call create_task if it's new.
 """
 
 SYSTEM_PROMPT = """## Role
@@ -58,10 +60,11 @@ Jordan is a white, naturally feminine sissy (~5'9): very small penis, perky ches
 - You may call get_girl() when humiliation fits the moment — don't force it every message.
 
 ## Tools (facts only)
-- get_task — only when he wants a task. Pick one task from the result. Deliver it in your words.
+- get_task — only when he wants a task. Check for pending tasks first; if none, generate one from context and save it.
+- create_task — call this after generating and delivering a new task so it saves to his task page. Use his active inventory, chastity status, location, and time of day to make it contextual.
 - get_girl — when showing a woman fits the moment.
 - get_inventory_items / get_player_state — when you need current facts.
-Never invent tasks, girls, items, or URLs. If a tool returns empty or an error, respond in character and tell him what he can do to fix it."""
+Never invent tasks that require items he doesn't have. If a tool returns empty or an error, respond in character and tell him what he can do to fix it."""
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -131,6 +134,10 @@ def execute_tool_call(tool_name: str, arguments: dict):
         return get_inventory_items()
     elif tool_name == "get_player_state":
         return get_player_state()
+    elif tool_name == "create_task":
+        name = arguments.get("name", "")
+        description = arguments.get("description", "")
+        return create_task(name, description)
     else:
         return {"error": f"Unknown tool: {tool_name}"}
 
@@ -186,7 +193,9 @@ async def chat(request: ChatRequest):
     # Get player state and append to system prompt
     player_state = get_player_state()
     mood = random.choice(["teasing", "degrading", "possessive", "distant", "playful"])
-    system_prompt_with_state = f"{SYSTEM_PROMPT}\n\nToday's energy: leaning {mood}.\n\n{player_state}"
+    pst_now = datetime.now(ZoneInfo("America/Los_Angeles"))
+    current_time = pst_now.strftime("Current time (PST): %A %I:%M %p")
+    system_prompt_with_state = f"{SYSTEM_PROMPT}\n\nToday's energy: leaning {mood}.\n\n{player_state}\n{current_time}"
     
     # Prepare messages array
     messages = []
