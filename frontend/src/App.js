@@ -3,9 +3,8 @@ import './App.css';
 import Navigation from './components/Navigation';
 import ChatPage from './pages/ChatPage';
 import TasksPage from './pages/TasksPage';
-import InventoryPage from './pages/InventoryPage';
+import CharacterPage from './pages/CharacterPage';
 import GirlsPage from './pages/GirlsPage';
-import PlayerStatePage from './pages/PlayerStatePage';
 import PasswordPage from './pages/PasswordPage';
 
 function App() {
@@ -30,12 +29,10 @@ function App() {
         return <ChatPage />;
       case 'tasks':
         return <TasksPage />;
-      case 'inventory':
-        return <InventoryPage />;
+      case 'character':
+        return <CharacterPage />;
       case 'girls':
         return <GirlsPage />;
-      case 'player-state':
-        return <PlayerStatePage />;
       default:
         return <ChatPage />;
     }

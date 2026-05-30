@@ -20,22 +20,16 @@ const Navigation = ({ activeTab, setActiveTab }) => {
             Tasks
           </button>
           <button
-            className={`nav-tab ${activeTab === 'inventory' ? 'active' : ''}`}
-            onClick={() => setActiveTab('inventory')}
+            className={`nav-tab ${activeTab === 'character' ? 'active' : ''}`}
+            onClick={() => setActiveTab('character')}
           >
-            Inventory
+            Character
           </button>
           <button
             className={`nav-tab ${activeTab === 'girls' ? 'active' : ''}`}
             onClick={() => setActiveTab('girls')}
           >
             Girls
-          </button>
-          <button
-            className={`nav-tab ${activeTab === 'player-state' ? 'active' : ''}`}
-            onClick={() => setActiveTab('player-state')}
-          >
-            Player State
           </button>
         </div>
       </div>
