@@ -36,9 +36,8 @@ TASK_MODULE = """
 ## Task delivery (this turn)
 Jordan asked for a task. You already called get_task() which returned the current pending task list.
 - Review the pending tasks already assigned (if any) — generate something DIFFERENT in type and intensity. No duplicates, nothing too similar to what's already pending.
-- Generate a new task based on his active inventory, chastity state, location, and current time of day. Make it contextually appropriate.
-- Deliver the task in character in your message.
-- Then call create_task(name, description) to save it. name = short label (e.g. "Edge with dildo"), description = the full order as you'd give it.
+- Generate a new task based on his active inventory, chastity state, location, and current time of day.
+- Deliver the task in character. One message — the order, any flavor (positions, duration, tone).
 - Never generate a task that requires inventory he doesn't have active.
 """
 
@@ -450,6 +449,25 @@ async def chat(request: ChatRequest):
             
             # Save assistant response to history
             save_chat_message("assistant", final_response)
+
+            # If this was a task request and create_task wasn't already called by the model,
+            # auto-save the task directly from the response so it always appears on the task page.
+            if is_task_request and final_response:
+                # Check whether create_task was already executed in the second-call tool loop
+                second_call_created = any(
+                    tc.get("function", {}).get("name") == "create_task"
+                    for tc in (assistant_message.get("tool_calls") or [])
+                ) if assistant_message else False
+
+                if not second_call_created:
+                    # Derive a short task name: first sentence up to 80 chars
+                    first_sentence = final_response.split(".")[0].split("\n")[0].strip()
+                    task_name = first_sentence[:80] if first_sentence else "Task"
+                    try:
+                        result = create_task(task_name, final_response)
+                        print(f"📝 Auto-saved task: {result}")
+                    except Exception as e:
+                        print(f"⚠️ Failed to auto-save task: {e}")
             
             return ChatResponse(
                 response=final_response,
