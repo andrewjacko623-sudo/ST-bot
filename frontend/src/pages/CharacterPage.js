@@ -4,7 +4,6 @@ import './CharacterPage.css';
 
 // ─── Shared image-upload helper ──────────────────────────────────────────────
 const uploadImage = async (file, bucket, prefix) => {
-  const ext = file.name.split('.').pop();
   const path = `${prefix}/${Date.now()}_${file.name.replace(/\s+/g, '_')}`;
   const { error } = await supabase.storage.from(bucket).upload(path, file, {
     contentType: file.type,
