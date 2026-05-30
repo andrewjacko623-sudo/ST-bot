@@ -34,11 +34,12 @@ else:
 # Task-only module — injected only on task requests, short and factual
 TASK_MODULE = """
 ## Task delivery (this turn)
-Jordan asked for a task. Call get_task() first to check for pending assigned tasks.
-- If pending tasks exist: pick one that fits his current state and inventory. Deliver it in your voice. Do NOT call create_task (already saved).
-- If no pending tasks: generate a new one based on his active inventory, chastity state, location, and current time of day. Then call create_task(name, description) to save it so it appears on his task page.
-- Never invent tasks that require inventory he doesn't have active.
-- One message: deliver the task in character, then silently call create_task if it's new.
+Jordan asked for a task. You already called get_task() which returned the current pending task list.
+- Review the pending tasks already assigned (if any) — generate something DIFFERENT in type and intensity. No duplicates, nothing too similar to what's already pending.
+- Generate a new task based on his active inventory, chastity state, location, and current time of day. Make it contextually appropriate.
+- Deliver the task in character in your message.
+- Then call create_task(name, description) to save it. name = short label (e.g. "Edge with dildo"), description = the full order as you'd give it.
+- Never generate a task that requires inventory he doesn't have active.
 """
 
 SYSTEM_PROMPT = """## Role
@@ -377,6 +378,20 @@ async def chat(request: ChatRequest):
                     print(f"   Response content preview: {content[:200] if content else 'EMPTY'}")
                     print(f"   Message keys: {list(assistant_message.keys())}")
                     
+                    # Execute any side-effect tool calls from the second response (e.g. create_task)
+                    second_tool_calls = assistant_message.get("tool_calls", [])
+                    if second_tool_calls:
+                        print(f"   🔧 Second call tool calls: {[tc.get('function', {}).get('name') for tc in second_tool_calls]}")
+                        for tc in second_tool_calls:
+                            tc_name = tc.get("function", {}).get("name")
+                            tc_args_str = tc.get("function", {}).get("arguments", "{}")
+                            try:
+                                tc_args = json.loads(tc_args_str)
+                                result = execute_tool_call(tc_name, tc_args)
+                                print(f"   ✅ Executed {tc_name}: {str(result)[:100]}")
+                            except Exception as e:
+                                print(f"   ❌ Failed to execute {tc_name}: {e}")
+
                     # Log refusal if present - this is why Grok isn't generating content
                     if refusal:
                         print(f"   ⚠️ GROK REFUSAL DETECTED: {json.dumps(refusal, indent=2)}")
