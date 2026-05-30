@@ -185,7 +185,7 @@ def create_task(name: str, description: str) -> Dict[str, Any]:
             "status": "pending",
             "required_inventory_ids": None,
             "requirements": None,
-        }).select("id, name, status, assigned_at").single().execute()
+        }).execute()
 
         if not result.data:
             return {"error": "Failed to save task — no data returned."}
