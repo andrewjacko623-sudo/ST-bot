@@ -279,8 +279,6 @@ const CharacterPage = () => {
 
   // Equip / unequip cage — also updates in_chastity and chastity_start_time at the top
   const equipCage = async (cage) => {
-    const toLocal = toPST;
-
     if (cage.is_active) {
       // ── Unequip ──────────────────────────────────────────────────────────────
       if (!window.confirm(`Remove ${cage.name}? This will clear your chastity start time.`)) return;
