@@ -303,7 +303,6 @@ const CharacterPage = () => {
       // Only set a new start time if not already in chastity (switching cages keeps streak)
       const nowIso = new Date().toISOString();
       const alreadyLocked = status.in_chastity && status.chastity_start_time;
-      const newStartTime = alreadyLocked ? null : nowIso;
 
       const stateUpdate = { in_chastity: true, chastity_device: cage.name };
       if (!alreadyLocked) stateUpdate.chastity_start_time = nowIso;
