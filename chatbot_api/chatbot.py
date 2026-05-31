@@ -272,6 +272,8 @@ async def chat(request: ChatRequest):
             
             assistant_message = data["choices"][0]["message"]
             tool_calls = assistant_message.get("tool_calls", [])
+            task_already_created = False  # track across both call rounds
+            task_already_completed = False
 
             # If there are tool calls, execute them and make another API call
             if tool_calls:
@@ -295,6 +297,10 @@ async def chat(request: ChatRequest):
                     try:
                         result = execute_tool_call(tool_name, tool_args)
                         tool_results.append(result)
+                        if tool_name == "create_task":
+                            task_already_created = True
+                        if tool_name == "complete_task":
+                            task_already_completed = True
                         
                         # Format the result for the API
                         if isinstance(result, str):
@@ -370,6 +376,10 @@ async def chat(request: ChatRequest):
                             try:
                                 tc_args = json.loads(tc_args_str)
                                 result = execute_tool_call(tc_name, tc_args)
+                                if tc_name == "create_task":
+                                    task_already_created = True
+                                if tc_name == "complete_task":
+                                    task_already_completed = True
                                 print(f"   ✅ Executed {tc_name}: {str(result)[:100]}")
                             except Exception as e:
                                 print(f"   ❌ Failed to execute {tc_name}: {e}")
@@ -423,12 +433,7 @@ async def chat(request: ChatRequest):
             # If Jordan reported completing a task and complete_task wasn't already called,
             # auto-complete the most recent pending task in Python.
             if is_completion_report:
-                already_completed = any(
-                    tc.get("function", {}).get("name") == "complete_task"
-                    for tc in (assistant_message.get("tool_calls") or [])
-                ) if assistant_message else False
-
-                if not already_completed:
+                if not task_already_completed:
                     try:
                         result = complete_task()
                         print(f"✅ Auto-completed task: {result}")
