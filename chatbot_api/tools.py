@@ -3,7 +3,7 @@ Tool functions for Grok to call
 """
 import os
 import random
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from dotenv import load_dotenv
 from supabase import create_client, Client
 from typing import Optional, Dict, List, Any
@@ -44,7 +44,7 @@ def get_tasks_context() -> str:
         # "Today" starts at 9am PST; if before 9am, today started at 9am yesterday
         today_start = now_pst.replace(hour=9, minute=0, second=0, microsecond=0)
         if now_pst.hour < 9:
-            today_start = today_start - __import__('datetime').timedelta(days=1)
+            today_start = today_start - timedelta(days=1)
         today_start_utc = today_start.astimezone(timezone.utc).isoformat()
 
         # Fetch pending tasks
