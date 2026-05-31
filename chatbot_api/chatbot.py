@@ -221,9 +221,17 @@ async def chat(request: ChatRequest):
     task_keywords = ["task", "order", "assign", "give me", "may i have", "please", "i want"]
     user_lower = user_message.lower()
     is_task_request = any(keyword in user_lower for keyword in task_keywords) and ("task" in user_lower or "order" in user_lower or "assign" in user_lower)
-    
+
+    # Check if user is reporting task completion
+    completion_phrases = ["i finished", "i'm done", "im done", "i did it", "done daddy", "finished daddy",
+                          "i completed", "all done", "just finished", "just done", "task done", "task complete",
+                          "i did the task", "finished the task", "done with the task", "it's done", "its done"]
+    is_completion_report = any(p in user_lower for p in completion_phrases)
+
     if is_task_request:
         print(f"🔍 Task request detected: '{user_message}' - Will force get_task tool call")
+    if is_completion_report:
+        print(f"✅ Completion report detected: '{user_message}'")
     
     messages.append({
         "role": "user",
@@ -479,6 +487,21 @@ async def chat(request: ChatRequest):
                             print(f"⚠️ Failed to auto-save task: {e}")
                 else:
                     print(f"⚠️ Skipped auto-save — response looks like a refusal, not a task")
+
+            # If Jordan reported completing a task and complete_task wasn't already called,
+            # auto-complete the most recent pending task in Python.
+            if is_completion_report:
+                already_completed = any(
+                    tc.get("function", {}).get("name") == "complete_task"
+                    for tc in (assistant_message.get("tool_calls") or [])
+                ) if assistant_message else False
+
+                if not already_completed:
+                    try:
+                        result = complete_task()
+                        print(f"✅ Auto-completed task: {result}")
+                    except Exception as e:
+                        print(f"⚠️ Failed to auto-complete task: {e}")
             
             return ChatResponse(
                 response=final_response,
