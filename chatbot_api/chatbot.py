@@ -272,7 +272,6 @@ async def chat(request: ChatRequest):
             
             assistant_message = data["choices"][0]["message"]
             tool_calls = assistant_message.get("tool_calls", [])
-            task_already_created = False  # track across both call rounds
             task_already_completed = False
 
             # If there are tool calls, execute them and make another API call
@@ -297,8 +296,6 @@ async def chat(request: ChatRequest):
                     try:
                         result = execute_tool_call(tool_name, tool_args)
                         tool_results.append(result)
-                        if tool_name == "create_task":
-                            task_already_created = True
                         if tool_name == "complete_task":
                             task_already_completed = True
                         
@@ -376,8 +373,6 @@ async def chat(request: ChatRequest):
                             try:
                                 tc_args = json.loads(tc_args_str)
                                 result = execute_tool_call(tc_name, tc_args)
-                                if tc_name == "create_task":
-                                    task_already_created = True
                                 if tc_name == "complete_task":
                                     task_already_completed = True
                                 print(f"   ✅ Executed {tc_name}: {str(result)[:100]}")
@@ -406,29 +401,6 @@ async def chat(request: ChatRequest):
 
             # Save assistant response to history
             save_chat_message("assistant", final_response)
-
-            # Auto-save fallback: if the message looks like a task request and create_task
-            # wasn't already called by the model, save from the response text.
-            task_keywords = ["task", "order", "give me", "may i have", "can i have", "assign"]
-            looks_like_task_request = any(k in user_lower for k in task_keywords)
-            if looks_like_task_request and final_response:
-                refusal_phrases = ["not tonight", "haven't earned", "come back when", "not yet", "earn it first"]
-                looks_like_refusal = len(final_response) < 80 or any(p in final_response.lower() for p in refusal_phrases)
-
-                if not looks_like_refusal:
-                    already_created = any(
-                        tc.get("function", {}).get("name") == "create_task"
-                        for tc in (assistant_message.get("tool_calls") or [])
-                    ) if assistant_message else False
-
-                    if not already_created:
-                        first_sentence = final_response.split(".")[0].split("\n")[0].strip()
-                        task_name = first_sentence[:80] if first_sentence else "Task"
-                        try:
-                            result = create_task(task_name, final_response)
-                            print(f"📝 Auto-saved task: {result}")
-                        except Exception as e:
-                            print(f"⚠️ Failed to auto-save task: {e}")
 
             # If Jordan reported completing a task and complete_task wasn't already called,
             # auto-complete the most recent pending task in Python.
