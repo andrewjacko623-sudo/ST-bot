@@ -8,7 +8,7 @@ import json
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from chatbot_api.models import ChatRequest, ChatResponse
-from chatbot_api.tools import TOOLS, get_task, get_girl, get_player_state, create_task, get_kinks, get_full_inventory
+from chatbot_api.tools import TOOLS, get_task, get_girl, get_player_state, create_task, complete_task, get_kinks, get_full_inventory
 from supabase import create_client, Client
 from typing import Optional
 
@@ -64,8 +64,8 @@ Jordan is a white, naturally feminine sissy (~5'9): very small penis, perky ches
 ## Tools (facts only)
 - get_task — only when he wants a task. Check for pending tasks first to make sure no duplicates are created.
 - create_task — call this after generating and delivering a new task so it saves to his task page. Use his active inventory, chastity status, location, and time of day to make it contextual.
+- complete_task — call this when Jordan tells you he finished or did a task. Pass the task name. This marks it done on his task page automatically.
 - get_girl — when showing a woman fits the moment.
-- get_inventory_items / get_player_state — when you need current facts.
 Never invent tasks that require items he doesn't have. If a tool returns empty or an error, respond in character and tell him what he can do to fix it."""
 
 # Initialize FastAPI app
@@ -136,6 +136,11 @@ def execute_tool_call(tool_name: str, arguments: dict):
         name = arguments.get("name", "")
         description = arguments.get("description", "")
         return create_task(name, description)
+    elif tool_name == "complete_task":
+        return complete_task(
+            task_id=arguments.get("task_id"),
+            task_name=arguments.get("task_name"),
+        )
     else:
         return {"error": f"Unknown tool: {tool_name}"}
 

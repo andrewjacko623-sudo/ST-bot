@@ -217,6 +217,49 @@ def get_inventory_items() -> List[str]:
         return [f"Error fetching inventory: {str(e)}"]
 
 
+def complete_task(task_id: str = None, task_name: str = None) -> Dict[str, Any]:
+    """
+    Mark a pending task as completed. Can look up by id or by name (partial match).
+    """
+    if not supabase:
+        return {"error": "Database not configured."}
+
+    try:
+        now = datetime.now(timezone.utc).isoformat()
+
+        if task_id:
+            result = supabase.table("tasks").update({
+                "status": "completed",
+                "completed_at": now,
+            }).eq("id", task_id).eq("status", "pending").execute()
+        elif task_name:
+            # Fetch pending tasks and match by name (case-insensitive partial)
+            fetch = supabase.table("tasks").select("id, name").eq("status", "pending").execute()
+            matches = [t for t in (fetch.data or []) if task_name.lower() in t.get("name", "").lower()]
+            if not matches:
+                return {"error": f"No pending task found matching '{task_name}'"}
+            result = supabase.table("tasks").update({
+                "status": "completed",
+                "completed_at": now,
+            }).eq("id", matches[0]["id"]).execute()
+        else:
+            # No id or name given — complete the most recently assigned pending task
+            fetch = supabase.table("tasks").select("id, name").eq("status", "pending").order("assigned_at", desc=True).limit(1).execute()
+            if not fetch.data:
+                return {"error": "No pending tasks to complete."}
+            result = supabase.table("tasks").update({
+                "status": "completed",
+                "completed_at": now,
+            }).eq("id", fetch.data[0]["id"]).execute()
+
+        completed_name = result.data[0].get("name") if result.data else task_name or task_id
+        return {"completed": True, "task_name": completed_name}
+
+    except Exception as e:
+        print(f"Error in complete_task: {e}")
+        return {"error": f"Error completing task: {str(e)}"}
+
+
 def create_task(name: str, description: str) -> Dict[str, Any]:
     """
     Save a new task that Daddy just assigned to Jordan into the database.
@@ -496,6 +539,23 @@ TOOLS = [
                     }
                 },
                 "required": ["name", "description"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "complete_task",
+            "description": "Mark a pending task as completed in the database. Call this when Jordan reports that he has finished or done a task. Pass the task name so it can be matched. If no name is clear, omit it and the most recently assigned pending task will be completed.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "task_name": {
+                        "type": "string",
+                        "description": "Name or partial name of the task Jordan completed (e.g. 'Edge with dildo'). Omit if unclear."
+                    }
+                },
+                "required": []
             }
         }
     }
