@@ -5,6 +5,7 @@ import ChatPage from './pages/ChatPage';
 import TasksPage from './pages/TasksPage';
 import CharacterPage from './pages/CharacterPage';
 import GirlsPage from './pages/GirlsPage';
+import KinksPage from './pages/KinksPage';
 import PasswordPage from './pages/PasswordPage';
 
 function App() {
@@ -33,6 +34,8 @@ function App() {
         return <CharacterPage />;
       case 'girls':
         return <GirlsPage />;
+      case 'kinks':
+        return <KinksPage />;
       default:
         return <ChatPage />;
     }

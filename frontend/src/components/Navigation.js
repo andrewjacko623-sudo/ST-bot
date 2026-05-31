@@ -31,6 +31,12 @@ const Navigation = ({ activeTab, setActiveTab }) => {
           >
             Girls
           </button>
+          <button
+            className={`nav-tab ${activeTab === 'kinks' ? 'active' : ''}`}
+            onClick={() => setActiveTab('kinks')}
+          >
+            Kinks
+          </button>
         </div>
       </div>
     </nav>

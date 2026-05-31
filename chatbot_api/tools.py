@@ -372,6 +372,34 @@ last-shave: {last_shave_str}
         return f"<PLAYER-STATE>\nerror: {str(e)}"
 
 
+def get_kinks() -> str:
+    """
+    Get Jordan's active kinks/fetishes from the database.
+    Returns a formatted string listing all active kinks with descriptions.
+    """
+    if not supabase:
+        return "<KINKS>\nerror: Database not configured\n</KINKS>"
+
+    try:
+        response = supabase.table("kinks").select("name, description").eq("is_active", True).order("created_at").execute()
+        kinks = response.data or []
+
+        if not kinks:
+            return "<KINKS>\nnone configured\n</KINKS>"
+
+        lines = []
+        for k in kinks:
+            line = f"- {k['name']}"
+            if k.get("description"):
+                line += f": {k['description']}"
+            lines.append(line)
+
+        return "<KINKS>\n" + "\n".join(lines) + "\n</KINKS>"
+
+    except Exception as e:
+        return f"<KINKS>\nerror: {str(e)}\n</KINKS>"
+
+
 # Tool definitions for Grok API
 TOOLS = [
     {

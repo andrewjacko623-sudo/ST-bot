@@ -8,7 +8,7 @@ import json
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from chatbot_api.models import ChatRequest, ChatResponse
-from chatbot_api.tools import TOOLS, get_task, get_girl, get_inventory_items, get_player_state, create_task
+from chatbot_api.tools import TOOLS, get_task, get_girl, get_inventory_items, get_player_state, create_task, get_kinks
 from supabase import create_client, Client
 from typing import Optional
 
@@ -36,7 +36,7 @@ TASK_MODULE = """
 ## Task delivery (this turn)
 Jordan asked for a task. You already called get_task() which returned the current pending task list.
 - Review the pending tasks already assigned (if any) — generate something DIFFERENT in type and intensity. No duplicates, nothing too similar to what's already pending.
-- Generate a new task based on his active inventory, chastity state, location, and current time of day.
+- Generate a new task based on his active inventory, chastity state, location, current time of day, and his <KINKS> list — lean into them.
 - Deliver the task in character. One message — the order, any flavor (positions, duration, tone).
 - Never generate a task that requires inventory he doesn't have active.
 """
@@ -192,10 +192,11 @@ async def chat(request: ChatRequest):
     
     # Get player state and append to system prompt
     player_state = get_player_state()
+    kinks = get_kinks()
     mood = random.choice(["teasing", "degrading", "possessive", "distant", "playful"])
     pst_now = datetime.now(ZoneInfo("America/Los_Angeles"))
     current_time = pst_now.strftime("Current time (PST): %A %I:%M %p")
-    system_prompt_with_state = f"{SYSTEM_PROMPT}\n\nToday's energy: leaning {mood}.\n\n{player_state}\n{current_time}"
+    system_prompt_with_state = f"{SYSTEM_PROMPT}\n\nToday's energy: leaning {mood}.\n\n{player_state}\n{kinks}\n{current_time}"
     
     # Prepare messages array
     messages = []
