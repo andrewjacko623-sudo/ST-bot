@@ -239,3 +239,48 @@
     text-align: center;
   }
 }
+
+/* ── Completed task delete controls ──────────────────── */
+.completed-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+
+.clear-all-button {
+  background: transparent;
+  border: 1px solid #ef444460;
+  color: #ef4444;
+  border-radius: 6px;
+  padding: 5px 14px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.clear-all-button:hover {
+  background: #ef444415;
+}
+
+.completed-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.delete-button {
+  background: transparent;
+  border: none;
+  color: #555;
+  font-size: 1.3rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: color 0.2s;
+}
+
+.delete-button:hover {
+  color: #ef4444;
+}

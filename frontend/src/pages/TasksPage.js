@@ -60,7 +60,19 @@ const TasksPage = () => {
     }
   };
 
-  const formatDate = (iso) => {
+  const handleDelete = async (task) => {
+    const { error } = await supabase.from('tasks').delete().eq('id', task.id);
+    if (error) { console.error('Error deleting task:', error); return; }
+    setCompletedTasks(prev => prev.filter(t => t.id !== task.id));
+  };
+
+  const handleDeleteAll = async () => {
+    if (!window.confirm('Delete all completed tasks?')) return;
+    const ids = completedTasks.map(t => t.id);
+    const { error } = await supabase.from('tasks').delete().in('id', ids);
+    if (error) { console.error('Error deleting tasks:', error); return; }
+    setCompletedTasks([]);
+  };
     if (!iso) return '';
     const d = new Date(iso);
     return d.toLocaleDateString('en-US', {
@@ -142,22 +154,38 @@ const TasksPage = () => {
               <p>No completed tasks yet.</p>
             </div>
           ) : (
-            <div className="tasks-list">
-              {completedTasks.map((task) => (
-                <div key={task.id} className="task-card completed">
-                  <div className="task-card-header">
-                    <h4 className="task-name completed-name">{task.name}</h4>
-                    <span className="done-badge">Done</span>
+            <>
+              <div className="completed-actions">
+                <button className="clear-all-button" onClick={handleDeleteAll}>
+                  Clear All
+                </button>
+              </div>
+              <div className="tasks-list">
+                {completedTasks.map((task) => (
+                  <div key={task.id} className="task-card completed">
+                    <div className="task-card-header">
+                      <h4 className="task-name completed-name">{task.name}</h4>
+                      <div className="completed-card-actions">
+                        <span className="done-badge">Done</span>
+                        <button
+                          className="delete-button"
+                          onClick={() => handleDelete(task)}
+                          title="Delete task"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    </div>
+                    {task.description && (
+                      <p className="task-description completed-description">{task.description}</p>
+                    )}
+                    {task.completed_at && (
+                      <span className="task-meta">Completed {formatDate(task.completed_at)}</span>
+                    )}
                   </div>
-                  {task.description && (
-                    <p className="task-description completed-description">{task.description}</p>
-                  )}
-                  {task.completed_at && (
-                    <span className="task-meta">Completed {formatDate(task.completed_at)}</span>
-                  )}
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            </>
           )
         )}
       </section>
