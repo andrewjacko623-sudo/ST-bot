@@ -1,0 +1,8 @@
+tasks:make a task system where you no longer have to input the tasks yourself on the UI.
+I want the chatbot to create tasks based on inventory items equipped time of day ect. 
+
+State: make the chatbot automatically update state based on the conversation.
+
+Time: make the chatbot have a sense of time.
+
+Chastity lockbox timer: User has to 
