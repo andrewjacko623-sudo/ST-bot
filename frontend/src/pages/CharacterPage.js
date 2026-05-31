@@ -126,6 +126,20 @@ const Section = ({ title, children, onAdd }) => (
   </section>
 );
 
+// Converts a UTC timestamp to a datetime-local string in PST (America/Los_Angeles)
+const toPST = (ts) => {
+  if (!ts) return '';
+  const date = new Date(ts);
+  // Get the date parts in PST
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Los_Angeles',
+    year: 'numeric', month: '2-digit', day: '2-digit',
+    hour: '2-digit', minute: '2-digit', hour12: false,
+  }).formatToParts(date);
+  const get = (type) => parts.find(p => p.type === type)?.value ?? '00';
+  return `${get('year')}-${get('month')}-${get('day')}T${get('hour')}:${get('minute')}`;
+};
+
 // ═══════════════════════════════════════════════════════════════════════════════
 const CharacterPage = () => {
   // ── Status state ─────────────────────────────────────────────────────────────
@@ -164,7 +178,7 @@ const CharacterPage = () => {
         console.error('Error loading player state:', error);
       } else if (data) {
         setStateId(data.id);
-        const toLocal = (ts) => ts ? new Date(ts).toISOString().slice(0, 16) : '';
+        const toLocal = toPST;
         setStatus({
           in_chastity: data.in_chastity ?? false,
           chastity_start_time: toLocal(data.chastity_start_time),
@@ -265,7 +279,7 @@ const CharacterPage = () => {
 
   // Equip / unequip cage — also updates in_chastity and chastity_start_time at the top
   const equipCage = async (cage) => {
-    const toLocal = (ts) => ts ? new Date(ts).toISOString().slice(0, 16) : '';
+    const toLocal = toPST;
 
     if (cage.is_active) {
       // ── Unequip ──────────────────────────────────────────────────────────────
@@ -322,7 +336,7 @@ const CharacterPage = () => {
       setStatus(s => ({
         ...s,
         in_chastity: true,
-        chastity_start_time: alreadyLocked ? s.chastity_start_time : toLocal(nowIso),
+        chastity_start_time: alreadyLocked ? s.chastity_start_time : toPST(nowIso),
       }));
     }
   };
