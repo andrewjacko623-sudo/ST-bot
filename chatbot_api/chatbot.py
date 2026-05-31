@@ -8,7 +8,7 @@ import json
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from chatbot_api.models import ChatRequest, ChatResponse
-from chatbot_api.tools import TOOLS, get_task, get_girl, get_inventory_items, get_player_state, create_task, get_kinks
+from chatbot_api.tools import TOOLS, get_task, get_girl, get_player_state, create_task, get_kinks, get_full_inventory
 from supabase import create_client, Client
 from typing import Optional
 
@@ -60,7 +60,7 @@ Jordan is a white, naturally feminine sissy (~5'9): very small penis, perky ches
 - You may call get_girl() when humiliation fits the moment — don't force it every message.
 
 ## Tools (facts only)
-- get_task — only when he wants a task. Check for pending tasks first; if none, generate one from context and save it.
+- get_task — only when he wants a task. Check for pending tasks first to make sure no duplicates are created.
 - create_task — call this after generating and delivering a new task so it saves to his task page. Use his active inventory, chastity status, location, and time of day to make it contextual.
 - get_girl — when showing a woman fits the moment.
 - get_inventory_items / get_player_state — when you need current facts.
@@ -130,10 +130,6 @@ def execute_tool_call(tool_name: str, arguments: dict):
         return get_task(category)
     elif tool_name == "get_girl":
         return get_girl()
-    elif tool_name == "get_inventory_items":
-        return get_inventory_items()
-    elif tool_name == "get_player_state":
-        return get_player_state()
     elif tool_name == "create_task":
         name = arguments.get("name", "")
         description = arguments.get("description", "")
@@ -192,11 +188,12 @@ async def chat(request: ChatRequest):
     
     # Get player state and append to system prompt
     player_state = get_player_state()
+    inventory = get_full_inventory()
     kinks = get_kinks()
     mood = random.choice(["teasing", "degrading", "possessive", "distant", "playful"])
     pst_now = datetime.now(ZoneInfo("America/Los_Angeles"))
     current_time = pst_now.strftime("Current time (PST): %A %I:%M %p")
-    system_prompt_with_state = f"{SYSTEM_PROMPT}\n\nToday's energy: leaning {mood}.\n\n{player_state}\n{kinks}\n{current_time}"
+    system_prompt_with_state = f"{SYSTEM_PROMPT}\n\nToday's energy: leaning {mood}.\n\n{player_state}\n{inventory}\n{kinks}\n{current_time}"
     
     # Prepare messages array
     messages = []

@@ -145,6 +145,53 @@ def get_girl() -> Dict[str, Any]:
         return {"error": f"Error fetching girl: {str(e)}"}
 
 
+def get_full_inventory() -> str:
+    """
+    Get the complete inventory (active and inactive) grouped by category.
+    Returns a formatted string for injection into the system prompt.
+    """
+    if not supabase:
+        return "<INVENTORY>\nerror: Database not configured\n</INVENTORY>"
+
+    try:
+        response = supabase.table("inventory").select("name, description, category, is_active").order("category").order("name").execute()
+        items = response.data or []
+
+        if not items:
+            return "<INVENTORY>\nnone\n</INVENTORY>"
+
+        groups = {}
+        for item in items:
+            cat = item.get("category") or "toy"
+            groups.setdefault(cat, []).append(item)
+
+        lines = []
+        for cat in ["cage", "toy", "outfit"]:
+            if cat not in groups:
+                continue
+            lines.append(f"{cat.upper()}S:")
+            for item in groups[cat]:
+                status = "equipped" if item.get("is_active") else "inactive"
+                line = f"  - {item['name']} [{status}]"
+                if item.get("description"):
+                    line += f" — {item['description']}"
+                lines.append(line)
+
+        # Any other categories
+        for cat, cat_items in groups.items():
+            if cat in ("cage", "toy", "outfit"):
+                continue
+            lines.append(f"{cat.upper()}S:")
+            for item in cat_items:
+                status = "active" if item.get("is_active") else "inactive"
+                lines.append(f"  - {item['name']} [{status}]")
+
+        return "<INVENTORY>\n" + "\n".join(lines) + "\n</INVENTORY>"
+
+    except Exception as e:
+        return f"<INVENTORY>\nerror: {str(e)}\n</INVENTORY>"
+
+
 def get_inventory_items() -> List[str]:
     """
     Get active inventory items. Only return items that are active.
@@ -424,30 +471,6 @@ TOOLS = [
         "function": {
             "name": "get_girl",
             "description": "Get a girl and her materials (photos/videos) from the database. Use this when you want to show a girl pic/video or talk about a girl. Returns girl info with material URLs that you can embed in your response.",
-            "parameters": {
-                "type": "object",
-                "properties": {},
-                "required": []
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_inventory_items",
-            "description": "Get active inventory items. Use this to check what items Jordan has available before assigning tasks that require specific items.",
-            "parameters": {
-                "type": "object",
-                "properties": {},
-                "required": []
-            }
-        }
-    },
-    {
-        "type": "function",
-        "function": {
-            "name": "get_player_state",
-            "description": "Get Jordan's current player state including chastity status, location, and time-based information (chastity duration, last orgasm, last shave). Returns a formatted string with all player state details.",
             "parameters": {
                 "type": "object",
                 "properties": {},
