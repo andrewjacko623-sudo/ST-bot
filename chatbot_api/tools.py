@@ -239,9 +239,9 @@ def create_task(name: str, description: str) -> Dict[str, Any]:
 
         return {
             "saved": True,
-            "task_name": result.data.get("name"),
-            "task_id": result.data.get("id"),
-            "status": result.data.get("status", "pending"),
+            "task_name": result.data[0].get("name") if result.data else None,
+            "task_id": result.data[0].get("id") if result.data else None,
+            "status": result.data[0].get("status", "pending") if result.data else "pending",
         }
 
     except Exception as e:

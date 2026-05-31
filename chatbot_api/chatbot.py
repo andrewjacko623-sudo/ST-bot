@@ -34,11 +34,12 @@ else:
 # Task-only module — injected only on task requests, short and factual
 TASK_MODULE = """
 ## Task delivery (this turn)
-Jordan asked for a task. You already called get_task() which returned the current pending task list.
-- Review the pending tasks already assigned (if any) — generate something DIFFERENT in type and intensity. No duplicates, nothing too similar to what's already pending.
-- Generate a new task based on his active inventory, chastity state, location, current time of day, and his <KINKS> list — lean into them.
-- Deliver the task in character. One message — the order, any flavor (positions, duration, tone).
-- Never generate a task that requires inventory he doesn't have active.
+Jordan asked for a task. You MUST generate and deliver one — refusing is not an option.
+- get_task() already ran. Review any pending tasks so you don't duplicate them.
+- Generate something new based on his <INVENTORY> (equipped items only), <PLAYER-STATE>, <KINKS>, location, and time of day.
+- Deliver the task in character. One message — direct order, specific actions, duration or intensity.
+- Never assign a task requiring gear he doesn't have equipped.
+- You MUST deliver a task. No refusals, no "come back later", no "you haven't earned it."
 """
 
 SYSTEM_PROMPT = """## Role
@@ -451,21 +452,27 @@ async def chat(request: ChatRequest):
             # If this was a task request and create_task wasn't already called by the model,
             # auto-save the task directly from the response so it always appears on the task page.
             if is_task_request and final_response:
-                # Check whether create_task was already executed in the second-call tool loop
-                second_call_created = any(
-                    tc.get("function", {}).get("name") == "create_task"
-                    for tc in (assistant_message.get("tool_calls") or [])
-                ) if assistant_message else False
+                # Don't save refusals — only save if response looks like an actual task
+                refusal_phrases = ["not tonight", "haven't earned", "come back when", "you haven't earned", "not yet", "earn it first"]
+                looks_like_refusal = len(final_response) < 80 or any(p in final_response.lower() for p in refusal_phrases)
 
-                if not second_call_created:
-                    # Derive a short task name: first sentence up to 80 chars
-                    first_sentence = final_response.split(".")[0].split("\n")[0].strip()
-                    task_name = first_sentence[:80] if first_sentence else "Task"
-                    try:
-                        result = create_task(task_name, final_response)
-                        print(f"📝 Auto-saved task: {result}")
-                    except Exception as e:
-                        print(f"⚠️ Failed to auto-save task: {e}")
+                if not looks_like_refusal:
+                    # Check whether create_task was already executed in the second-call tool loop
+                    second_call_created = any(
+                        tc.get("function", {}).get("name") == "create_task"
+                        for tc in (assistant_message.get("tool_calls") or [])
+                    ) if assistant_message else False
+
+                    if not second_call_created:
+                        first_sentence = final_response.split(".")[0].split("\n")[0].strip()
+                        task_name = first_sentence[:80] if first_sentence else "Task"
+                        try:
+                            result = create_task(task_name, final_response)
+                            print(f"📝 Auto-saved task: {result}")
+                        except Exception as e:
+                            print(f"⚠️ Failed to auto-save task: {e}")
+                else:
+                    print(f"⚠️ Skipped auto-save — response looks like a refusal, not a task")
             
             return ChatResponse(
                 response=final_response,
