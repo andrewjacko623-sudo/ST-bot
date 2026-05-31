@@ -36,9 +36,10 @@ TASK_MODULE = """
 ## Task delivery (this turn)
 Jordan asked for a task. You MUST generate and deliver one — refusing is not an option.
 - get_task() already ran. Review any pending tasks so you don't duplicate them.
-- Generate something new based on his <INVENTORY> (equipped items only), <PLAYER-STATE>, <KINKS>, location, and time of day.
+- Check <INVENTORY>. Items marked [equipped] are physically on or available to Jordan RIGHT NOW. Items marked [inactive] are NOT present — do NOT reference them in any task.
+- Generate something using ONLY [equipped] inventory items, <PLAYER-STATE>, <KINKS>, location, and time of day.
+- If no toys are equipped, generate a task using only his body, cage, or mental/verbal humiliation.
 - Deliver the task in character. One message — direct order, specific actions, duration or intensity.
-- Never assign a task requiring gear he doesn't have equipped.
 - You MUST deliver a task. No refusals, no "come back later", no "you haven't earned it."
 """
 
