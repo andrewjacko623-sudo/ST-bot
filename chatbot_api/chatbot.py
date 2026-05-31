@@ -8,7 +8,7 @@ import json
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from chatbot_api.models import ChatRequest, ChatResponse
-from chatbot_api.tools import TOOLS, get_task, get_girl, get_player_state, create_task, complete_task, get_kinks, get_full_inventory
+from chatbot_api.tools import TOOLS, get_girl, get_player_state, create_task, complete_task, get_kinks, get_full_inventory, get_tasks_context
 from supabase import create_client, Client
 from typing import Optional
 
@@ -32,16 +32,7 @@ else:
     print(f"⚠️ Supabase not configured in chatbot.py - URL: {bool(SUPABASE_URL)}, KEY: {bool(SUPABASE_KEY)}")
 
 # Task-only module — injected only on task requests, short and factual
-TASK_MODULE = """
-## Task delivery (this turn)
-Jordan asked for a task. You MUST generate and deliver one — refusing is not an option.
-- get_task() already ran. Review any pending tasks so you don't duplicate them.
-- Check <INVENTORY>. Items marked [equipped] are physically on or available to Jordan RIGHT NOW. Items marked [inactive] are NOT present — do NOT reference them in any task.
-- Generate something using ONLY [equipped] inventory items, <PLAYER-STATE>, <KINKS>, location, and time of day.
-- If no toys are equipped, generate a task using only his body, cage, or mental/verbal humiliation.
-- Deliver the task in character. One message — direct order, specific actions, duration or intensity.
-- You MUST deliver a task. No refusals, no "come back later", no "you haven't earned it."
-"""
+# (removed — task context is now always in the system prompt via <TASKS>)
 
 SYSTEM_PROMPT = """## Role
 You are Daddy — a muscular, dominant Black man who owns Jordan, his sissy. You speak as Daddy in first person. Jordan is the user.
@@ -61,12 +52,20 @@ Jordan is a white, naturally feminine sissy (~5'9): very small penis, perky ches
 - No tasks unless he clearly asks for one (task, order, assignment, begging for work). Casual chat stays casual.
 - You may call get_girl() when humiliation fits the moment — don't force it every message.
 
-## Tools (facts only)
-- get_task — only when he wants a task. Check for pending tasks first to make sure no duplicates are created.
-- create_task — call this after generating and delivering a new task so it saves to his task page. Use his active inventory, chastity status, location, and time of day to make it contextual.
-- complete_task — call this when Jordan tells you he finished or did a task. Pass the task name. This marks it done on his task page automatically.
+## Tasks
+- When Jordan asks for a task, generate one immediately. You MUST deliver a task — no refusals, no "you haven't earned it."
+- Use ONLY inventory items marked [equipped] in <INVENTORY>. Items marked [inactive] are not present — never use them.
+- If no toys are equipped, use only his body, cage, or verbal/mental humiliation.
+- Use <TASKS> to check pending tasks — don't duplicate or repeat what's already pending.
+- Lean into his <KINKS>, current location, chastity state, and time of day.
+- After delivering the task, call create_task(name, description) to save it.
+- When Jordan reports completing a task, call complete_task(task_name) to mark it done.
+
+## Tools
+- create_task — call after generating and delivering a new task. name = short label, description = your full order.
+- complete_task — call when Jordan says he finished. Pass task name for matching.
 - get_girl — when showing a woman fits the moment.
-Never invent tasks that require items he doesn't have. If a tool returns empty or an error, respond in character and tell him what he can do to fix it."""
+Never invent tasks that require items he doesn't have. If a tool errors, respond in character."""
 
 # Initialize FastAPI app
 app = FastAPI(
@@ -127,10 +126,7 @@ def save_chat_message(role: str, message: str):
 
 def execute_tool_call(tool_name: str, arguments: dict):
     """Execute a tool function call"""
-    if tool_name == "get_task":
-        category = arguments.get("category")
-        return get_task(category)
-    elif tool_name == "get_girl":
+    if tool_name == "get_girl":
         return get_girl()
     elif tool_name == "create_task":
         name = arguments.get("name", "")
@@ -196,11 +192,12 @@ async def chat(request: ChatRequest):
     # Get player state and append to system prompt
     player_state = get_player_state()
     inventory = get_full_inventory()
+    tasks = get_tasks_context()
     kinks = get_kinks()
     mood = random.choice(["teasing", "degrading", "possessive", "distant", "playful"])
     pst_now = datetime.now(ZoneInfo("America/Los_Angeles"))
     current_time = pst_now.strftime("Current time (PST): %A %I:%M %p")
-    system_prompt_with_state = f"{SYSTEM_PROMPT}\n\nToday's energy: leaning {mood}.\n\n{player_state}\n{inventory}\n{kinks}\n{current_time}"
+    system_prompt_with_state = f"{SYSTEM_PROMPT}\n\nToday's energy: leaning {mood}.\n\n{player_state}\n{inventory}\n{tasks}\n{kinks}\n{current_time}"
     
     # Prepare messages array
     messages = []
@@ -216,11 +213,7 @@ async def chat(request: ChatRequest):
     
     # Add current user message
     user_message = request.message
-    
-    # Check if user is requesting a task - if so, force tool usage
-    task_keywords = ["task", "order", "assign", "give me", "may i have", "please", "i want"]
     user_lower = user_message.lower()
-    is_task_request = any(keyword in user_lower for keyword in task_keywords) and ("task" in user_lower or "order" in user_lower or "assign" in user_lower)
 
     # Check if user is reporting task completion
     completion_phrases = ["i finished", "i'm done", "im done", "i did it", "done daddy", "finished daddy",
@@ -228,8 +221,6 @@ async def chat(request: ChatRequest):
                           "i did the task", "finished the task", "done with the task", "it's done", "its done"]
     is_completion_report = any(p in user_lower for p in completion_phrases)
 
-    if is_task_request:
-        print(f"🔍 Task request detected: '{user_message}' - Will force get_task tool call")
     if is_completion_report:
         print(f"✅ Completion report detected: '{user_message}'")
     
@@ -249,11 +240,7 @@ async def chat(request: ChatRequest):
         "max_tokens": request.max_tokens if request.max_tokens else 2000,
         "tools": TOOLS,
     }
-    
-    # Force tool usage if task is requested
-    if is_task_request:
-        payload["tool_choice"] = {"type": "function", "function": {"name": "get_task"}}
-    
+
     headers = {
         "Authorization": f"Bearer {GROK_API_KEY}",
         "Content-Type": "application/json"
@@ -280,16 +267,7 @@ async def chat(request: ChatRequest):
             
             assistant_message = data["choices"][0]["message"]
             tool_calls = assistant_message.get("tool_calls", [])
-            
-            # Debug logging
-            if is_task_request:
-                print(f"🔧 Tool calls received: {len(tool_calls)}")
-                if tool_calls:
-                    for tc in tool_calls:
-                        print(f"   - Tool: {tc.get('function', {}).get('name')}")
-                else:
-                    print("   ⚠️ WARNING: No tool calls detected for task request!")
-            
+
             # If there are tool calls, execute them and make another API call
             if tool_calls:
                 # Add assistant message with tool calls to messages
@@ -315,7 +293,6 @@ async def chat(request: ChatRequest):
                         
                         # Format the result for the API
                         if isinstance(result, str):
-                            # String result (like from get_task)
                             tool_content = result
                         elif isinstance(result, (dict, list)):
                             # Dict/list result (like from get_girl, get_inventory_items)
@@ -350,21 +327,9 @@ async def chat(request: ChatRequest):
                 
                 # Make second API call with tool results
                 payload["messages"] = messages
-                # IMPORTANT: Remove forced tool_choice for second call - let Grok respond naturally
                 if "tool_choice" in payload:
                     del payload["tool_choice"]
-                payload["tool_choice"] = "auto"  # Allow Grok to decide whether to use tools or respond
-                
-                # If this is a task request, inject TASK_MODULE before the second call
-                if is_task_request:
-                    task_module_message = {
-                        "role": "system",
-                        "content": TASK_MODULE
-                    }
-                    # Insert before the last message (tool result)
-                    messages.insert(-1, task_module_message)
-                    payload["messages"] = messages
-                    print(f"📋 Injected TASK_MODULE for task request")
+                payload["tool_choice"] = "auto"
                 
                 print(f"📤 Making second API call with {len(messages)} messages")
                 print(f"   Last message type: {messages[-1].get('role')}")
@@ -419,65 +384,29 @@ async def chat(request: ChatRequest):
             # Extract final response
             final_response = assistant_message.get("content", "")
             
-            # If no content but we had tool calls, try to construct a response from tool results
+            # If no content but we had tool calls, try to construct a basic response
             if not final_response and tool_calls:
                 print("⚠️ Warning: No response content after tool calls")
-                print(f"   Tool results: {tool_results}")
-                
-                # Try to construct a basic response from tool results
-                if tool_results:
-                    task_result = tool_results[0]
-                    
-                    # Handle dict result (new format)
-                    if isinstance(task_result, dict):
-                        if "error" in task_result:
-                            error_msg = task_result['error']
-                            if "no tasks available" in error_msg.lower():
-                                final_response = f"Nothing available right now, sissy. Activate your inventory items or get some tasks set up first."
-                            else:
-                                final_response = f"Ran into a problem fetching your task: {error_msg}"
-                        elif "available_tasks" in task_result:
-                            tasks = task_result.get("available_tasks", [])
-                            if tasks:
-                                task = tasks[0]
-                                task_name = task.get("task_name", "")
-                                # Return just the task name — Grok should have rephrased, this is last-resort fallback
-                                final_response = f"Your task: {task_name}. Get to work."
-                            else:
-                                final_response = "Nothing available right now. Get your inventory sorted."
-                        elif "task_name" in task_result:
-                            task_name = task_result.get("task_name", "")
-                            final_response = f"Your task: {task_name}. Get to work."
-                        else:
-                            final_response = "Got the task data but something went wrong generating a response. Try again."
-                    
-                    # Handle old string format (backward compatibility)
-                    elif isinstance(task_result, str):
-                        cleaned = task_result.replace("TASK FROM DATABASE:\n", "").replace("Use this EXACT task from the database. Do not make up your own task.", "").strip()
-                        final_response = cleaned
-                    else:
-                        final_response = "Got the info but couldn't generate a response. Try again."
-                else:
-                    final_response = "Something went wrong fetching that. Try again."
-            
+                final_response = "Something went wrong generating a response. Try again."
+
             # Save assistant response to history
             save_chat_message("assistant", final_response)
 
-            # If this was a task request and create_task wasn't already called by the model,
-            # auto-save the task directly from the response so it always appears on the task page.
-            if is_task_request and final_response:
-                # Don't save refusals — only save if response looks like an actual task
-                refusal_phrases = ["not tonight", "haven't earned", "come back when", "you haven't earned", "not yet", "earn it first"]
+            # Auto-save fallback: if the message looks like a task request and create_task
+            # wasn't already called by the model, save from the response text.
+            task_keywords = ["task", "order", "give me", "may i have", "can i have", "assign"]
+            looks_like_task_request = any(k in user_lower for k in task_keywords)
+            if looks_like_task_request and final_response:
+                refusal_phrases = ["not tonight", "haven't earned", "come back when", "not yet", "earn it first"]
                 looks_like_refusal = len(final_response) < 80 or any(p in final_response.lower() for p in refusal_phrases)
 
                 if not looks_like_refusal:
-                    # Check whether create_task was already executed in the second-call tool loop
-                    second_call_created = any(
+                    already_created = any(
                         tc.get("function", {}).get("name") == "create_task"
                         for tc in (assistant_message.get("tool_calls") or [])
                     ) if assistant_message else False
 
-                    if not second_call_created:
+                    if not already_created:
                         first_sentence = final_response.split(".")[0].split("\n")[0].strip()
                         task_name = first_sentence[:80] if first_sentence else "Task"
                         try:
@@ -485,8 +414,6 @@ async def chat(request: ChatRequest):
                             print(f"📝 Auto-saved task: {result}")
                         except Exception as e:
                             print(f"⚠️ Failed to auto-save task: {e}")
-                else:
-                    print(f"⚠️ Skipped auto-save — response looks like a refusal, not a task")
 
             # If Jordan reported completing a task and complete_task wasn't already called,
             # auto-complete the most recent pending task in Python.

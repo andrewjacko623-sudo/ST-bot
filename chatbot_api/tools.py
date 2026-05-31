@@ -28,6 +28,57 @@ else:
     print(f"⚠️ Supabase not configured in tools.py - URL: {bool(SUPABASE_URL)}, KEY: {bool(SUPABASE_KEY)}")
 
 
+def get_tasks_context() -> str:
+    """
+    Get pending tasks and today's completed tasks (day resets at 9am PST).
+    Returns a formatted string for injection into the system prompt.
+    """
+    if not supabase:
+        return "<TASKS>\nerror: Database not configured\n</TASKS>"
+
+    try:
+        from zoneinfo import ZoneInfo
+        pst = ZoneInfo("America/Los_Angeles")
+        now_pst = datetime.now(pst)
+
+        # "Today" starts at 9am PST; if before 9am, today started at 9am yesterday
+        today_start = now_pst.replace(hour=9, minute=0, second=0, microsecond=0)
+        if now_pst.hour < 9:
+            today_start = today_start - __import__('datetime').timedelta(days=1)
+        today_start_utc = today_start.astimezone(timezone.utc).isoformat()
+
+        # Fetch pending tasks
+        pending_resp = supabase.table("tasks").select("name, description, assigned_at") \
+            .eq("status", "pending").order("assigned_at", desc=False).execute()
+
+        # Fetch today's completed tasks
+        completed_resp = supabase.table("tasks").select("name, completed_at") \
+            .eq("status", "completed").gte("completed_at", today_start_utc).order("completed_at", desc=False).execute()
+
+        lines = []
+
+        pending = pending_resp.data or []
+        if pending:
+            lines.append("PENDING:")
+            for t in pending:
+                lines.append(f"  - {t['name']}")
+        else:
+            lines.append("PENDING: none")
+
+        completed_today = completed_resp.data or []
+        if completed_today:
+            lines.append("COMPLETED TODAY:")
+            for t in completed_today:
+                lines.append(f"  - {t['name']}")
+        else:
+            lines.append("COMPLETED TODAY: none")
+
+        return "<TASKS>\n" + "\n".join(lines) + "\n</TASKS>"
+
+    except Exception as e:
+        return f"<TASKS>\nerror: {str(e)}\n</TASKS>"
+
+
 def get_task(category: Optional[str] = None) -> Dict[str, Any]:
     """
     Get available tasks from the database where all required inventory items are active.
@@ -492,23 +543,6 @@ def get_kinks() -> str:
 
 # Tool definitions for Grok API
 TOOLS = [
-    {
-        "type": "function",
-        "function": {
-            "name": "get_task",
-            "description": "CRITICAL: Get available tasks from the database that can be completed with Jordan's current inventory. You MUST call this function whenever the user asks for a task. Returns a dict with 'available_tasks' (list of tasks Jordan can do), 'active_inventory' (items Jordan has), and 'total_available'. The 'description' field contains both a description of the task AND instructions for how you should present/give the task to Jordan. Use the description as guidance for how to phrase the task assignment in your own words.",
-            "parameters": {
-                "type": "object",
-                "properties": {
-                    "category": {
-                        "type": "string",
-                        "description": "Optional category filter for tasks"
-                    }
-                },
-                "required": []
-            }
-        }
-    },
     {
         "type": "function",
         "function": {
