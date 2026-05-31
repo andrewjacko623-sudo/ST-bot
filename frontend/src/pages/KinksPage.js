@@ -8,6 +8,10 @@ const KinksPage = () => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [adding, setAdding] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const [editName, setEditName] = useState('');
+  const [editDesc, setEditDesc] = useState('');
+  const [saving, setSaving] = useState(false);
 
   const loadKinks = useCallback(async () => {
     setLoading(true);
@@ -44,6 +48,37 @@ const KinksPage = () => {
     }
   };
 
+  const startEdit = (kink) => {
+    setEditingId(kink.id);
+    setEditName(kink.name);
+    setEditDesc(kink.description || '');
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditName('');
+    setEditDesc('');
+  };
+
+  const saveEdit = async (kink) => {
+    if (!editName.trim()) return;
+    setSaving(true);
+    try {
+      const { error } = await supabase
+        .from('kinks')
+        .update({ name: editName.trim(), description: editDesc.trim() || null })
+        .eq('id', kink.id);
+      if (error) { alert('Save failed: ' + error.message); return; }
+      setKinks(p => p.map(k => k.id === kink.id
+        ? { ...k, name: editName.trim(), description: editDesc.trim() || null }
+        : k
+      ));
+      cancelEdit();
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const toggleActive = async (kink) => {
     const newVal = !kink.is_active;
     const { error } = await supabase.from('kinks').update({ is_active: newVal }).eq('id', kink.id);
@@ -61,7 +96,7 @@ const KinksPage = () => {
   return (
     <div className="kinks-page">
       <h2 className="kinks-title">Kinks</h2>
-      <p className="kinks-subtitle">Active kinks are injected into every chat so Daddy references them when creating tasks.</p>
+      <p className="kinks-subtitle">Active kinks are injected into every chat so Daddy references them when creating tasks. The description is the guide for how to build tasks around each kink.</p>
 
       {/* ── Add form ── */}
       <section className="kinks-section">
@@ -81,7 +116,7 @@ const KinksPage = () => {
           </div>
           <textarea
             className="kinks-textarea"
-            placeholder="Optional notes (e.g. likes verbal humiliation but not degrading names)"
+            placeholder="Task guide — how should Daddy build tasks around this kink?"
             rows={2}
             value={description}
             onChange={e => setDescription(e.target.value)}
@@ -99,27 +134,66 @@ const KinksPage = () => {
         ) : (
           <ul className="kinks-list">
             {kinks.map(k => (
-              <li key={k.id} className={`kink-row ${k.is_active ? 'active' : 'inactive'}`}>
-                <div className="kink-info">
-                  <span className="kink-name">{k.name}</span>
-                  {k.description && <span className="kink-desc">{k.description}</span>}
-                </div>
-                <div className="kink-actions">
-                  <button
-                    className={`btn-kink-toggle ${k.is_active ? 'on' : 'off'}`}
-                    onClick={() => toggleActive(k)}
-                    title={k.is_active ? 'Disable' : 'Enable'}
-                  >
-                    {k.is_active ? 'Active' : 'Off'}
-                  </button>
-                  <button
-                    className="btn-kink-delete"
-                    onClick={() => deleteKink(k)}
-                    title="Delete"
-                  >
-                    ×
-                  </button>
-                </div>
+              <li key={k.id} className={`kink-row ${k.is_active ? 'active' : 'inactive'} ${editingId === k.id ? 'editing' : ''}`}>
+                {editingId === k.id ? (
+                  <div className="kink-edit-form">
+                    <input
+                      className="kinks-input"
+                      value={editName}
+                      onChange={e => setEditName(e.target.value)}
+                      placeholder="Kink name"
+                    />
+                    <textarea
+                      className="kinks-textarea"
+                      value={editDesc}
+                      onChange={e => setEditDesc(e.target.value)}
+                      placeholder="Task guide — how should Daddy build tasks around this kink?"
+                      rows={3}
+                    />
+                    <div className="kink-edit-actions">
+                      <button
+                        className="btn-kink-save"
+                        onClick={() => saveEdit(k)}
+                        disabled={saving || !editName.trim()}
+                      >
+                        {saving ? 'Saving…' : 'Save'}
+                      </button>
+                      <button className="btn-kink-cancel" onClick={cancelEdit}>
+                        Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="kink-info">
+                      <span className="kink-name">{k.name}</span>
+                      {k.description && <span className="kink-desc">{k.description}</span>}
+                    </div>
+                    <div className="kink-actions">
+                      <button
+                        className={`btn-kink-toggle ${k.is_active ? 'on' : 'off'}`}
+                        onClick={() => toggleActive(k)}
+                        title={k.is_active ? 'Disable' : 'Enable'}
+                      >
+                        {k.is_active ? 'Active' : 'Off'}
+                      </button>
+                      <button
+                        className="btn-kink-edit"
+                        onClick={() => startEdit(k)}
+                        title="Edit"
+                      >
+                        ✎
+                      </button>
+                      <button
+                        className="btn-kink-delete"
+                        onClick={() => deleteKink(k)}
+                        title="Delete"
+                      >
+                        ×
+                      </button>
+                    </div>
+                  </>
+                )}
               </li>
             ))}
           </ul>

@@ -200,6 +200,78 @@
   color: #ef4444;
 }
 
+/* ── Inline edit ───────────────────────────────────── */
+.kink-row.editing {
+  flex-direction: column;
+  align-items: stretch;
+  border-left-color: #a855f7;
+  opacity: 1;
+}
+
+.kink-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.kink-edit-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.btn-kink-save {
+  background: #ec4899;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 16px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-kink-save:hover:not(:disabled) {
+  background: #d43d86;
+}
+
+.btn-kink-save:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-kink-cancel {
+  background: transparent;
+  border: 1px solid #3a3a50;
+  color: #888;
+  border-radius: 6px;
+  padding: 6px 14px;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s;
+}
+
+.btn-kink-cancel:hover {
+  border-color: #666;
+  color: #ccc;
+}
+
+.btn-kink-edit {
+  background: transparent;
+  border: none;
+  color: #666;
+  font-size: 1rem;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: color 0.2s;
+}
+
+.btn-kink-edit:hover {
+  color: #a855f7;
+}
+
 .kinks-empty {
   color: #666;
   font-style: italic;
