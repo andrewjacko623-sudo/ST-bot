@@ -99,7 +99,7 @@ const ItemCard = ({ item, equipLabel, onEquip, onToggle, onDelete, isEquipMode }
             className={`btn-equip ${item.is_active ? 'equipped' : ''}`}
             onClick={() => onEquip(item)}
           >
-            {item.is_active ? 'Equipped' : equipLabel}
+            {item.is_active ? 'Unequip' : equipLabel}
           </button>
         ) : (
           <button
@@ -263,26 +263,69 @@ const CharacterPage = () => {
     setter(p => p.map(i => i.id === item.id ? { ...i, is_active: newVal } : i));
   };
 
-  // Equip cage: deactivate all other cages, activate this one, update player-state.chastity_device
+  // Equip / unequip cage — also updates in_chastity and chastity_start_time at the top
   const equipCage = async (cage) => {
-    if (cage.is_active) return;
-    const { error: deactivateErr } = await supabase
-      .from('inventory')
-      .update({ is_active: false })
-      .eq('category', 'cage')
-      .neq('id', cage.id);
-    if (deactivateErr) { alert('Failed: ' + deactivateErr.message); return; }
+    const toLocal = (ts) => ts ? new Date(ts).toISOString().slice(0, 16) : '';
 
-    const { error: activateErr } = await supabase
-      .from('inventory')
-      .update({ is_active: true })
-      .eq('id', cage.id);
-    if (activateErr) { alert('Failed: ' + activateErr.message); return; }
+    if (cage.is_active) {
+      // ── Unequip ──────────────────────────────────────────────────────────────
+      if (!window.confirm(`Remove ${cage.name}? This will clear your chastity start time.`)) return;
 
-    if (stateId) {
-      await supabase.from('player-state').update({ chastity_device: cage.name }).eq('id', stateId);
+      const { error } = await supabase
+        .from('inventory')
+        .update({ is_active: false })
+        .eq('id', cage.id);
+      if (error) { alert('Failed: ' + error.message); return; }
+
+      const stateUpdate = { in_chastity: false, chastity_start_time: null, chastity_device: null };
+      if (stateId) {
+        await supabase.from('player-state').update(stateUpdate).eq('id', stateId);
+      }
+
+      setCages(p => p.map(c => c.id === cage.id ? { ...c, is_active: false } : c));
+      setStatus(s => ({ ...s, in_chastity: false, chastity_start_time: '' }));
+
+    } else {
+      // ── Equip ─────────────────────────────────────────────────────────────────
+      const { error: deactivateErr } = await supabase
+        .from('inventory')
+        .update({ is_active: false })
+        .eq('category', 'cage')
+        .neq('id', cage.id);
+      if (deactivateErr) { alert('Failed: ' + deactivateErr.message); return; }
+
+      const { error: activateErr } = await supabase
+        .from('inventory')
+        .update({ is_active: true })
+        .eq('id', cage.id);
+      if (activateErr) { alert('Failed: ' + activateErr.message); return; }
+
+      // Only set a new start time if not already in chastity (switching cages keeps streak)
+      const nowIso = new Date().toISOString();
+      const alreadyLocked = status.in_chastity && status.chastity_start_time;
+      const newStartTime = alreadyLocked ? null : nowIso;
+
+      const stateUpdate = { in_chastity: true, chastity_device: cage.name };
+      if (!alreadyLocked) stateUpdate.chastity_start_time = nowIso;
+
+      if (stateId) {
+        await supabase.from('player-state').update(stateUpdate).eq('id', stateId);
+      } else {
+        const { data } = await supabase
+          .from('player-state')
+          .insert([{ ...stateUpdate }])
+          .select()
+          .single();
+        if (data) setStateId(data.id);
+      }
+
+      setCages(p => p.map(c => ({ ...c, is_active: c.id === cage.id })));
+      setStatus(s => ({
+        ...s,
+        in_chastity: true,
+        chastity_start_time: alreadyLocked ? s.chastity_start_time : toLocal(nowIso),
+      }));
     }
-    setCages(p => p.map(c => ({ ...c, is_active: c.id === cage.id })));
   };
 
   // ── Location helpers ───────────────────────────────────────────────────────────
