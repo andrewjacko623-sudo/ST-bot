@@ -272,6 +272,99 @@
   color: #a855f7;
 }
 
+/* ── Type badge ────────────────────────────────────── */
+.kink-name-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.kink-type-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 7px;
+  border-radius: 99px;
+}
+
+.kink-type-badge.major {
+  background: #ec489920;
+  color: #ec4899;
+}
+
+.kink-type-badge.minor {
+  background: #a855f720;
+  color: #a855f7;
+}
+
+/* ── Type toggle button ────────────────────────────── */
+.btn-kink-type {
+  border: none;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-kink-type.is-major {
+  background: #3a3a50;
+  color: #888;
+}
+
+.btn-kink-type.is-major:hover {
+  background: #a855f720;
+  color: #a855f7;
+}
+
+.btn-kink-type.is-minor {
+  background: #a855f720;
+  color: #a855f7;
+}
+
+.btn-kink-type.is-minor:hover {
+  background: #a855f740;
+}
+
+/* ── Add form type toggle ──────────────────────────── */
+.kink-type-toggle-row {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.btn-type {
+  border: 1px solid #3a3a50;
+  background: transparent;
+  color: #888;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-type.major-active {
+  background: #ec489920;
+  border-color: #ec4899;
+  color: #ec4899;
+}
+
+.btn-type.minor-active {
+  background: #a855f720;
+  border-color: #a855f7;
+  color: #a855f7;
+}
+
+/* Minor kink row tint */
+.kink-row.type-minor {
+  border-left-color: #a855f7;
+}
+
 .kinks-empty {
   color: #666;
   font-style: italic;

@@ -515,25 +515,39 @@ last-shave: {last_shave_str}
 
 def get_kinks() -> str:
     """
-    Get Jordan's active kinks/fetishes from the database.
-    Returns a formatted string listing all active kinks with descriptions.
+    Get Jordan's active kinks/fetishes from the database, split into major and minor.
+    Returns a formatted string for injection into the system prompt.
     """
     if not supabase:
         return "<KINKS>\nerror: Database not configured\n</KINKS>"
 
     try:
-        response = supabase.table("kinks").select("name, description").eq("is_active", True).order("created_at").execute()
+        response = supabase.table("kinks").select("name, description, type").eq("is_active", True).order("created_at").execute()
         kinks = response.data or []
 
         if not kinks:
             return "<KINKS>\nnone configured\n</KINKS>"
 
+        major = [k for k in kinks if (k.get("type") or "major") == "major"]
+        minor = [k for k in kinks if (k.get("type") or "major") == "minor"]
+
         lines = []
-        for k in kinks:
-            line = f"- {k['name']}"
-            if k.get("description"):
-                line += f": {k['description']}"
-            lines.append(line)
+
+        if major:
+            lines.append("MAJOR (pick one as the task activity — rotate, avoid repeating today):")
+            for k in major:
+                line = f"  - {k['name']}"
+                if k.get("description"):
+                    line += f": {k['description']}"
+                lines.append(line)
+
+        if minor:
+            lines.append("MINOR (layer onto the task for tone/flavor — never use as the whole task):")
+            for k in minor:
+                line = f"  - {k['name']}"
+                if k.get("description"):
+                    line += f": {k['description']}"
+                lines.append(line)
 
         return "<KINKS>\n" + "\n".join(lines) + "\n</KINKS>"
 

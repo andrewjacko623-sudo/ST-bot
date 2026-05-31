@@ -7,10 +7,12 @@ const KinksPage = () => {
   const [loading, setLoading] = useState(true);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [type, setType] = useState('major');
   const [adding, setAdding] = useState(false);
   const [editingId, setEditingId] = useState(null);
   const [editName, setEditName] = useState('');
   const [editDesc, setEditDesc] = useState('');
+  const [editType, setEditType] = useState('major');
   const [saving, setSaving] = useState(false);
 
   const loadKinks = useCallback(async () => {
@@ -36,13 +38,14 @@ const KinksPage = () => {
     try {
       const { data, error } = await supabase
         .from('kinks')
-        .insert([{ name: name.trim(), description: description.trim() || null, is_active: true }])
+        .insert([{ name: name.trim(), description: description.trim() || null, is_active: true, type }])
         .select()
         .single();
       if (error) { alert('Failed to add: ' + error.message); return; }
       setKinks(p => [...p, data]);
       setName('');
       setDescription('');
+      setType('major');
     } finally {
       setAdding(false);
     }
@@ -52,12 +55,14 @@ const KinksPage = () => {
     setEditingId(kink.id);
     setEditName(kink.name);
     setEditDesc(kink.description || '');
+    setEditType(kink.type || 'major');
   };
 
   const cancelEdit = () => {
     setEditingId(null);
     setEditName('');
     setEditDesc('');
+    setEditType('major');
   };
 
   const saveEdit = async (kink) => {
@@ -66,11 +71,11 @@ const KinksPage = () => {
     try {
       const { error } = await supabase
         .from('kinks')
-        .update({ name: editName.trim(), description: editDesc.trim() || null })
+        .update({ name: editName.trim(), description: editDesc.trim() || null, type: editType })
         .eq('id', kink.id);
       if (error) { alert('Save failed: ' + error.message); return; }
       setKinks(p => p.map(k => k.id === kink.id
-        ? { ...k, name: editName.trim(), description: editDesc.trim() || null }
+        ? { ...k, name: editName.trim(), description: editDesc.trim() || null, type: editType }
         : k
       ));
       cancelEdit();
@@ -79,8 +84,14 @@ const KinksPage = () => {
     }
   };
 
-  const toggleActive = async (kink) => {
-    const newVal = !kink.is_active;
+  const toggleType = async (kink) => {
+    const newType = (kink.type || 'major') === 'major' ? 'minor' : 'major';
+    const { error } = await supabase.from('kinks').update({ type: newType }).eq('id', kink.id);
+    if (error) { alert('Update failed: ' + error.message); return; }
+    setKinks(p => p.map(k => k.id === kink.id ? { ...k, type: newType } : k));
+  };
+
+  const toggleActive = async (kink) => {    const newVal = !kink.is_active;
     const { error } = await supabase.from('kinks').update({ is_active: newVal }).eq('id', kink.id);
     if (error) { alert('Update failed: ' + error.message); return; }
     setKinks(p => p.map(k => k.id === kink.id ? { ...k, is_active: newVal } : k));
@@ -110,6 +121,18 @@ const KinksPage = () => {
               onChange={e => setName(e.target.value)}
               required
             />
+            <div className="kink-type-toggle-row">
+              <button
+                type="button"
+                className={`btn-type ${type === 'major' ? 'major-active' : ''}`}
+                onClick={() => setType('major')}
+              >Major</button>
+              <button
+                type="button"
+                className={`btn-type ${type === 'minor' ? 'minor-active' : ''}`}
+                onClick={() => setType('minor')}
+              >Minor</button>
+            </div>
             <button className="btn-kink-add" type="submit" disabled={adding || !name.trim()}>
               {adding ? 'Adding…' : '+ Add'}
             </button>
@@ -134,15 +157,29 @@ const KinksPage = () => {
         ) : (
           <ul className="kinks-list">
             {kinks.map(k => (
-              <li key={k.id} className={`kink-row ${k.is_active ? 'active' : 'inactive'} ${editingId === k.id ? 'editing' : ''}`}>
+              <li key={k.id} className={`kink-row ${k.is_active ? 'active' : 'inactive'} ${editingId === k.id ? 'editing' : ''} type-${k.type || 'major'}`}>
                 {editingId === k.id ? (
                   <div className="kink-edit-form">
-                    <input
-                      className="kinks-input"
-                      value={editName}
-                      onChange={e => setEditName(e.target.value)}
-                      placeholder="Kink name"
-                    />
+                    <div className="kinks-form-row">
+                      <input
+                        className="kinks-input"
+                        value={editName}
+                        onChange={e => setEditName(e.target.value)}
+                        placeholder="Kink name"
+                      />
+                      <div className="kink-type-toggle-row">
+                        <button
+                          type="button"
+                          className={`btn-type ${editType === 'major' ? 'major-active' : ''}`}
+                          onClick={() => setEditType('major')}
+                        >Major</button>
+                        <button
+                          type="button"
+                          className={`btn-type ${editType === 'minor' ? 'minor-active' : ''}`}
+                          onClick={() => setEditType('minor')}
+                        >Minor</button>
+                      </div>
+                    </div>
                     <textarea
                       className="kinks-textarea"
                       value={editDesc}
@@ -166,7 +203,12 @@ const KinksPage = () => {
                 ) : (
                   <>
                     <div className="kink-info">
-                      <span className="kink-name">{k.name}</span>
+                      <div className="kink-name-row">
+                        <span className="kink-name">{k.name}</span>
+                        <span className={`kink-type-badge ${(k.type || 'major') === 'minor' ? 'minor' : 'major'}`}>
+                          {(k.type || 'major') === 'minor' ? 'Minor' : 'Major'}
+                        </span>
+                      </div>
                       {k.description && <span className="kink-desc">{k.description}</span>}
                     </div>
                     <div className="kink-actions">
@@ -176,6 +218,13 @@ const KinksPage = () => {
                         title={k.is_active ? 'Disable' : 'Enable'}
                       >
                         {k.is_active ? 'Active' : 'Off'}
+                      </button>
+                      <button
+                        className={`btn-kink-type ${(k.type || 'major') === 'minor' ? 'is-minor' : 'is-major'}`}
+                        onClick={() => toggleType(k)}
+                        title="Toggle major/minor"
+                      >
+                        {(k.type || 'major') === 'minor' ? '↑ Major' : '↓ Minor'}
                       </button>
                       <button
                         className="btn-kink-edit"
